@@ -5,6 +5,9 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <errno.h>
+#include <locale.h>
+
 #include <pthread.h>
 #if defined(__GLIBC__) || defined(__CYGWIN__)
 #include <sys/sysinfo.h>
@@ -12,8 +15,9 @@
 
 #include "Timer.h"
 
-#define SIZE       100000000  // The size of the array to sum.
-#define ITERATIONS 100        // The number of times we'll do the summation for timing purposes.
+#define SIZE            100000000    // The size of the array to sum.
+#define ITERATIONS      100          // The number of times we'll do the summation for timing purposes.
+#define TOTAL_VOLUME    1000000000   // How much to churn
 
 // -----------
 // Serial Sums
@@ -177,7 +181,7 @@ double sum_dynamic( const double *array, size_t size )
 // -------
 
 // The runner function exercises either the serial or the parallel version.
-void runner( const char *tag, const double *array, size_t size, double ( *function )( const double *, size_t ) )
+double runner( const char *tag, const double *array, size_t size, size_t iterations, double ( *function )( const double *, size_t ) )
 {
     double sum;
     Timer  stopwatch;
@@ -185,21 +189,39 @@ void runner( const char *tag, const double *array, size_t size, double ( *functi
 
     Timer_initialize( &stopwatch );
     Timer_start( &stopwatch );
-    for( int i = 0; i < ITERATIONS; ++i ) {
+    for( int i = 0; i < iterations; ++i ) {
         sum = function( array, size );
     }
     Timer_stop( &stopwatch );
     seconds = (double)Timer_time( &stopwatch ) / 1000.0;
-    seconds /= ITERATIONS;
-    printf( "Sum (%s) = %f (%f seconds)\n", tag, sum, seconds );
+    seconds /= iterations;
+    // printf( "Sum (%s) = %f (%f seconds)\n", tag, sum, seconds );
+
+    return seconds;
 }
 
 
-int main( void )
+int main( int argc, char *argv[] )
 {
-    int rc = EXIT_SUCCESS;
-    double *p = (double *)malloc( SIZE * sizeof(double) );
+    // Handle command line arg for changing size
 
+    char *char_pointer;
+    long size = SIZE;
+    if (argc > 1) {
+        errno = 0;
+        long converted = strtol(argv[1], &char_pointer, 10);
+
+        if (errno == 0 && *char_pointer == '\0' && converted > 0 && converted <= __LONG_MAX__) {
+            size = converted;
+        }
+    }
+
+    long iterations = TOTAL_VOLUME / size;
+
+    int rc = EXIT_SUCCESS;
+    double *p = (double *)malloc( size * sizeof(double) );
+
+    /*
     #if defined(__GLIBC__) || defined(__CYGWIN__)
     // A glibc-specific function.
     int processor_count = get_nprocs( );
@@ -209,6 +231,7 @@ int main( void )
     #endif
 
     printf( "This environment has %d processing elements.\n", processor_count );
+    */
 
     if( p == NULL ) {
         printf( "Unable to allocate memory for array!\n" );
@@ -216,18 +239,20 @@ int main( void )
     }
     else {
         // Fill array with known data.
-        for( size_t i = 0; i < SIZE; ++i ) {
+        for( size_t i = 0; i < size; ++i ) {
             p[i] = 1.0;
         }
 
         // Try the various ways of summing it.
-        runner( "simp", p, SIZE, sum_simple );
-        runner( "recu", p, SIZE, sum_recursive );
-        runner( "hybr", p, SIZE, sum_hybrid );
-        runner( "para", p, SIZE, sum_parallel );
-        runner( "dyna", p, SIZE, sum_dynamic );
+        runner( "simp", p, size, iterations, sum_simple );
+        runner( "recu", p, size, iterations, sum_recursive );
+        double hybrid_time = runner( "hybr", p, size, iterations, sum_hybrid );
+        double parallel_time = runner( "para", p, size, iterations, sum_parallel );
+        double dynamic_time = runner( "dyna", p, size, iterations, sum_dynamic );
+        setlocale(LC_NUMERIC, "");
+        printf( "%'16ld,%16lf,%16lf,%16lf,%16lf,%16lf\n", size, hybrid_time, parallel_time, dynamic_time, hybrid_time / parallel_time, hybrid_time / dynamic_time);
         free( p );
     }
-        
+
     return rc;
 }
