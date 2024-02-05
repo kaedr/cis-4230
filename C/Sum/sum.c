@@ -17,7 +17,7 @@
 
 #define SIZE            100000000    // The size of the array to sum.
 #define ITERATIONS      100          // The number of times we'll do the summation for timing purposes.
-#define TOTAL_VOLUME    1000000000   // How much to churn
+#define TOTAL_VOLUME    10000000000   // How much to churn
 
 // -----------
 // Serial Sums
@@ -244,13 +244,13 @@ int main( int argc, char *argv[] )
         }
 
         // Try the various ways of summing it.
-        runner( "simp", p, size, iterations, sum_simple );
-        runner( "recu", p, size, iterations, sum_recursive );
-        double hybrid_time = runner( "hybr", p, size, iterations, sum_hybrid );
-        double parallel_time = runner( "para", p, size, iterations, sum_parallel );
+        // runner( "simp", p, size, iterations, sum_simple );
+        // runner( "recu", p, size, iterations, sum_recursive );
+        // double hybrid_time = runner( "hybr", p, size, iterations, sum_hybrid );
+        // double parallel_time = runner( "para", p, size, iterations, sum_parallel );
         double dynamic_time = runner( "dyna", p, size, iterations, sum_dynamic );
-        setlocale(LC_NUMERIC, "");
-        printf( "%'16ld,%16lf,%16lf,%16lf,%16lf,%16lf\n", size, hybrid_time, parallel_time, dynamic_time, hybrid_time / parallel_time, hybrid_time / dynamic_time);
+        // printf( "%16ld,%16lf,%16lf,%16lf,%16lf,%16lf\n", size, hybrid_time, parallel_time, dynamic_time, hybrid_time / parallel_time, hybrid_time / dynamic_time);
+	printf("%ld,%lf", size, dynamic_time);
         free( p );
     }
 
