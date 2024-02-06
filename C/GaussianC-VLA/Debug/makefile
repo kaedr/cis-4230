@@ -40,7 +40,7 @@ main-build: GaussianC-VLA.exe
 GaussianC-VLA.exe: $(OBJS) $(USER_OBJS) makefile $(OPTIONAL_TOOL_DEPS)
 	@echo 'Building target: $@'
 	@echo 'Invoking: Cygwin C Linker'
-	gcc  -o "GaussianC-VLA.exe" $(OBJS) $(USER_OBJS) $(LIBS)
+	gcc -g  -o "GaussianC-VLA.exe" $(OBJS) $(USER_OBJS) $(LIBS)
 	@echo 'Finished building target: $@'
 	@echo ' '
 
