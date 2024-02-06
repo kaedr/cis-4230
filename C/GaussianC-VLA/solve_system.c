@@ -66,7 +66,7 @@ int main( int argc, char *argv[] )
         // for( size_t i = 0; i < size; ++i ) {
         //     printf( " x[%4zu] = %9.5f\n", i, b[i] );
         // }
-        printf( "\nExecution time = %ld milliseconds\n", Timer_time( &stopwatch ) );
+        printf( "Execution time = %ld milliseconds\n", Timer_time( &stopwatch ) );
         break;
 
     case gaussian_error:

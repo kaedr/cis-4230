@@ -41,12 +41,23 @@ void * chunk_elimination( void *arg ) {
     floating_type  m;
 
     // Subtract multiples of row i from subsequent rows.
-    for( j = start; j < stop; ++j ) {
-        m = a[j][current] / a[current][current];
-        for( k = 0; k < size; ++k ) {
-            a[j][k] -= m * a[current][k];
+    if (start % 2 == 0) {
+        for( j = start; j < stop; ++j ) {
+            m = a[j][current] / a[current][current];
+            for( k = 0; k < size; ++k ) {
+                a[j][k] -= m * a[current][k];
+            }
+            b[j] -= m * b[current];
         }
-        b[j] -= m * b[current];
+    } else {
+        for( j = stop - 1; j >= start; --j ) {
+            m = a[j][current] / a[current][current];
+            for( k = 0; k < size; ++k ) {
+                a[j][k] -= m * a[current][k];
+            }
+            b[j] -= m * b[current];
+        }
+
     }
 
     return NULL;
