@@ -47,7 +47,7 @@ PRIVATE enum GaussianResult elimination( size_t size, floating_type (* restrict 
             memcpy( temp_array, a[i], size * sizeof( floating_type ) );
             memcpy( a[i], a[k], size * sizeof( floating_type ) );
             memcpy( a[k], temp_array, size * sizeof( floating_type ) );
-            
+
             // Exchange corresponding elements of b.
             temp = b[i];
             b[i] = b[k];
@@ -55,11 +55,22 @@ PRIVATE enum GaussianResult elimination( size_t size, floating_type (* restrict 
         }
 
         // Subtract multiples of row i from subsequent rows.
-        for( j = i + 1; j < size; ++j ) {
-            m = a[j][i] / a[i][i];
-            for( k = 0; k < size; ++k )
-                a[j][k] -= m * a[i][k];
-            b[j] -= m * b[i];
+        if (i % 2 == 0) {
+            for( j = i + 1; j < size; ++j ) {
+                m = a[j][i] / a[i][i];
+                for( k = 0; k < size; ++k ) {
+                    a[j][k] -= m * a[i][k];
+                }
+                b[j] -= m * b[i];
+            }
+        } else {
+            for( j = size - 1; j > i; --j ) {
+                m = a[j][i] / a[i][i];
+                for( k = 0; k < size; ++k ) {
+                    a[j][k] -= m * a[i][k];
+                }
+                b[j] -= m * b[i];
+            }
         }
     }
     //free( temp_array );
