@@ -17,7 +17,7 @@
 
 #define SIZE            100000000    // The size of the array to sum.
 #define ITERATIONS      100          // The number of times we'll do the summation for timing purposes.
-#define TOTAL_VOLUME    10000000000   // How much to churn
+#define TOTAL_VOLUME    1000000000   // How much to churn
 
 // -----------
 // Serial Sums
@@ -127,15 +127,8 @@ double sum_parallel( const double *array, size_t size )
  * \param size The number of elements in the array to sum.
  * \return The sum of all the array elements. There is no checking for overflow.
  */
-double sum_dynamic( const double *array, size_t size )
+double sum_dynamic( const double *array, size_t size, size_t processor_count )
 {
-    #if defined(__GLIBC__) || defined(__CYGWIN__)
-    // A glibc-specific function.
-    int processor_count = get_nprocs( );
-    #else
-    // A POSIX threads extension (not supported by glibc, but available, e.g., on Windows).
-    int processor_count = pthread_num_processors_np( );
-    #endif
 
     struct ArrayRange *ranges =
         (struct ArrayRange *)malloc( processor_count * sizeof(struct ArrayRange) );
@@ -181,7 +174,7 @@ double sum_dynamic( const double *array, size_t size )
 // -------
 
 // The runner function exercises either the serial or the parallel version.
-double runner( const char *tag, const double *array, size_t size, size_t iterations, double ( *function )( const double *, size_t ) )
+double runner( const char *tag, const double *array, size_t size, size_t iterations, double ( *function )( const double *, size_t, size_t ), size_t processor_count )
 {
     double sum;
     Timer  stopwatch;
@@ -190,7 +183,7 @@ double runner( const char *tag, const double *array, size_t size, size_t iterati
     Timer_initialize( &stopwatch );
     Timer_start( &stopwatch );
     for( int i = 0; i < iterations; ++i ) {
-        sum = function( array, size );
+        sum = function( array, size, processor_count );
     }
     Timer_stop( &stopwatch );
     seconds = (double)Timer_time( &stopwatch ) / 1000.0;
@@ -215,6 +208,13 @@ int main( int argc, char *argv[] )
             size = converted;
         }
     }
+    #if defined(__GLIBC__) || defined(__CYGWIN__)
+    // A glibc-specific function.
+    int processor_count = get_nprocs( );
+    #else
+    // A POSIX threads extension (not supported by glibc, but available, e.g., on Windows).
+    int processor_count = pthread_num_processors_np( );
+    #endif
 
     long iterations = TOTAL_VOLUME / size;
 
@@ -248,9 +248,12 @@ int main( int argc, char *argv[] )
         // runner( "recu", p, size, iterations, sum_recursive );
         // double hybrid_time = runner( "hybr", p, size, iterations, sum_hybrid );
         // double parallel_time = runner( "para", p, size, iterations, sum_parallel );
-        double dynamic_time = runner( "dyna", p, size, iterations, sum_dynamic );
+
+        for (size_t i = 1; i <= processor_count; ++i) {
+            double dynamic_time = runner( "dyna", p, size, iterations, sum_dynamic, i );
+	        printf("%ld / %ld -> %lf\n", size, i, dynamic_time);
+        }
         // printf( "%16ld,%16lf,%16lf,%16lf,%16lf,%16lf\n", size, hybrid_time, parallel_time, dynamic_time, hybrid_time / parallel_time, hybrid_time / dynamic_time);
-	printf("%ld,%lf", size, dynamic_time);
         free( p );
     }
 

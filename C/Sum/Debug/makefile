@@ -40,7 +40,7 @@ main-build: Sum.exe
 Sum.exe: $(OBJS) $(USER_OBJS) makefile $(OPTIONAL_TOOL_DEPS)
 	@echo 'Building target: $@'
 	@echo 'Invoking: Cygwin C Linker'
-	gcc  -o "Sum.exe" $(OBJS) $(USER_OBJS) $(LIBS)
+	gcc -g -o "Sum.exe" $(OBJS) $(USER_OBJS) $(LIBS)
 	@echo 'Finished building target: $@'
 	@echo ' '
 
