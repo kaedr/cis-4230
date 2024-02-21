@@ -249,10 +249,17 @@ int main( int argc, char *argv[] )
         // double hybrid_time = runner( "hybr", p, size, iterations, sum_hybrid );
         // double parallel_time = runner( "para", p, size, iterations, sum_parallel );
 
+	double single_threaded_time = 0;
+
         for (size_t i = 1; i <= processor_count; ++i) {
             double dynamic_time = runner( "dyna", p, size, iterations, sum_dynamic, i );
-	        printf("%ld / %ld -> %lf\n", size, i, dynamic_time);
-        }
+            if (i == 1) {
+                single_threaded_time = dynamic_time;
+	            printf("Array Size: %ld  Threads: %ld  Time: %lf\n", size, i, dynamic_time);
+            } else {
+	            printf("Array Size: %ld  Threads: %ld  Time: %lf  Speadup: %lf\n", size, i, dynamic_time, single_threaded_time / dynamic_time);
+            }
+	}
         // printf( "%16ld,%16lf,%16lf,%16lf,%16lf,%16lf\n", size, hybrid_time, parallel_time, dynamic_time, hybrid_time / parallel_time, hybrid_time / dynamic_time);
         free( p );
     }
