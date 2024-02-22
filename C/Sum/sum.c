@@ -238,10 +238,18 @@ int main( int argc, char *argv[] )
         rc = EXIT_FAILURE;
     }
     else {
+        Timer  stopwatch;
+        double seconds;
+
+        Timer_initialize( &stopwatch );
+        Timer_start( &stopwatch );
         // Fill array with known data.
         for( size_t i = 0; i < size; ++i ) {
             p[i] = 1.0;
         }
+        Timer_stop( &stopwatch );
+        seconds = (double)Timer_time( &stopwatch ) / 1000.0;
+        printf( "Filled Array Size %ld in %lf seconds\n", size, seconds );
 
         // Try the various ways of summing it.
         // runner( "simp", p, size, iterations, sum_simple );
@@ -253,6 +261,16 @@ int main( int argc, char *argv[] )
 
         for (size_t i = 1; i <= processor_count; ++i) {
             double dynamic_time = runner( "dyna", p, size, iterations, sum_dynamic, i );
+            double dynamic_time_two = runner( "dyna", p, size, iterations, sum_dynamic, i );
+            double dynamic_time_three = runner( "dyna", p, size, iterations, sum_dynamic, i );
+
+            // Grab the best of 3 runs
+            if (dynamic_time_two <= dynamic_time && dynamic_time_two <= dynamic_time_three) {
+                dynamic_time = dynamic_time_two;
+            } else if (dynamic_time_three <= dynamic_time && dynamic_time_three <= dynamic_time_two) {
+                dynamic_time = dynamic_time_three;
+            }
+
             if (i == 1) {
                 single_threaded_time = dynamic_time;
 	            printf("Array Size: %ld  Threads: %ld  Time: %lf\n", size, i, dynamic_time);
