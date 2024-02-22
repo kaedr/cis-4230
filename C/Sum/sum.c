@@ -275,7 +275,7 @@ int main( int argc, char *argv[] )
                 single_threaded_time = dynamic_time;
 	            printf("Array Size: %ld  Threads: %ld  Time: %lf\n", size, i, dynamic_time);
             } else {
-	            printf("Array Size: %ld  Threads: %ld  Time: %lf  Speadup: %lf\n", size, i, dynamic_time, single_threaded_time / dynamic_time);
+	            printf("Array Size: %ld  Threads: %ld  Time: %lf  Speedup: %lf\n", size, i, dynamic_time, single_threaded_time / dynamic_time);
             }
 	}
         // printf( "%16ld,%16lf,%16lf,%16lf,%16lf,%16lf\n", size, hybrid_time, parallel_time, dynamic_time, hybrid_time / parallel_time, hybrid_time / dynamic_time);
