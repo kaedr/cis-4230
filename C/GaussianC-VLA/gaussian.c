@@ -11,6 +11,7 @@
 #include <pthread.h>
 #include <stdio.h>
 
+#include "ThreadPool.h"
 #include "gaussian.h"
 
 // For profiling, it is best for all functions to be public.
@@ -71,6 +72,11 @@ enum GaussianResult parallel_elimination( size_t size, floating_type (* restrict
     floating_type  temp, m;
     size_t  chunk_size;
 
+    ThreadPool pool;
+    ThreadPool_initialize(&pool);
+
+
+
     for( i = 0; i < size - 1; ++i ) {
 
         // Find the row with the largest value of |a[j][i]|, j = i, ..., n - 1
@@ -123,11 +129,11 @@ enum GaussianResult parallel_elimination( size_t size, floating_type (* restrict
 
         // Start the worker threads.
         for( int h = 0; h < processor_count; ++h ) {
-            pthread_create( &threads[h], NULL, chunk_elimination, &ranges[h] );
+            threads[h] = ThreadPool_start( &pool, chunk_elimination, &ranges[h]);
         }
 
         for( int h = 0; h < processor_count; ++h ) {
-            pthread_join( threads[h], NULL );
+            ThreadPool_result(&pool, threads[h]);
         }
 
         // Release dynamic memory.
@@ -135,6 +141,8 @@ enum GaussianResult parallel_elimination( size_t size, floating_type (* restrict
         free( ranges );
 
     }
+
+    ThreadPool_destroy(&pool);
 
     return gaussian_success;
 }

@@ -2,21 +2,24 @@
 # Automatically-generated file. Do not edit!
 ################################################################################
 
-# Add inputs and outputs from these tool invocations to the build variables 
+# Add inputs and outputs from these tool invocations to the build variables
 C_SRCS += \
 ../Timer.c \
+../ThreadPool.c \
 ../gaussian.c \
-../solve_system.c 
+../solve_system.c
 
 C_DEPS += \
 ./Timer.d \
+../ThreadPool.d \
 ./gaussian.d \
-./solve_system.d 
+./solve_system.d
 
 OBJS += \
 ./Timer.o \
+../ThreadPool.o \
 ./gaussian.o \
-./solve_system.o 
+./solve_system.o
 
 
 # Each subdirectory must supply rules for building sources it contributes
