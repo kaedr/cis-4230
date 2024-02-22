@@ -50,7 +50,7 @@ int main( int argc, char *argv[] )
         fscanf( input_file, "%lf", &b[i] );
     }
     fclose( input_file );
-    printf( "\nFinished reading %s\n", argv[1] );
+    // printf( "\nFinished reading %s\n", argv[1] );
 
     // Do the calculations.
     Timer stopwatch;
@@ -62,11 +62,11 @@ int main( int argc, char *argv[] )
     // Display the results.
     switch( result ) {
     case gaussian_success:
-        printf( "\nSolution is\n" );
-        for( size_t i = 0; i < size; ++i ) {
-            printf( " x[%4zu] = %9.5f\n", i, b[i] );
-        }
-        printf( "\nExecution time = %ld milliseconds\n", Timer_time( &stopwatch ) );
+        // printf( "\nSolution is\n" );
+        // for( size_t i = 0; i < size; ++i ) {
+        //     printf( " x[%4zu] = %9.5f\n", i, b[i] );
+        // }
+        printf( "Execution time = %ld milliseconds\n", Timer_time( &stopwatch ) );
         break;
 
     case gaussian_error:
