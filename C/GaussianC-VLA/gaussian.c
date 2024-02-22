@@ -8,12 +8,31 @@
 
 #include <math.h>
 #include <string.h>
+#include <pthread.h>
+#include <stdio.h>
 
 #include "gaussian.h"
 
 // For profiling, it is best for all functions to be public.
 #define PRIVATE // static
 #define PUBLIC
+
+// Structure to define the data processed by a single thread.
+struct WorkUnit {
+    floating_type *a;
+    floating_type *b;
+    size_t current;
+    size_t start;
+    size_t stop;
+    size_t size;
+};
+
+pthread_barrier_t iteration_barrier;
+pthread_barrier_t work_barrier;
+
+void * barrier_elimination( void *arg) {
+
+}
 
 //! Does the elimination step of reducing the system. O(n^3)
 PRIVATE enum GaussianResult elimination( size_t size, floating_type (* restrict a)[size], floating_type * restrict b )
@@ -47,7 +66,7 @@ PRIVATE enum GaussianResult elimination( size_t size, floating_type (* restrict 
             memcpy( temp_array, a[i], size * sizeof( floating_type ) );
             memcpy( a[i], a[k], size * sizeof( floating_type ) );
             memcpy( a[k], temp_array, size * sizeof( floating_type ) );
-            
+
             // Exchange corresponding elements of b.
             temp = b[i];
             b[i] = b[k];
