@@ -32,7 +32,7 @@ TWO=$(./GaussianC-VLA.exe ~/2000x2000.dat | cut -d ' ' -f4)
 THREE=$(./GaussianC-VLA.exe ~/2000x2000.dat | cut -d ' ' -f4)
 min_number $ONE $TWO $THREE
 
-# echo "Running 5000x5000"
-# ./GaussianC-VLA.exe ~/5000x5000.dat
-# ./GaussianC-VLA.exe ~/5000x5000.dat
-# ./GaussianC-VLA.exe ~/5000x5000.dat
+ echo "Running 5000x5000"
+ ./GaussianC-VLA.exe ~/5000x5000.dat
+ ./GaussianC-VLA.exe ~/5000x5000.dat
+ ./GaussianC-VLA.exe ~/5000x5000.dat
