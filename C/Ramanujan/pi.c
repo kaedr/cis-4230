@@ -129,6 +129,61 @@ void update_accumulator(const struct Memo *k_memo, mpfr_t accumulator, int desir
     mpfr_clear( factor );
 }
 
+int check_results(mpfr_t accumulator, long precision) {
+
+    FILE * pi_file = fopen("pi.txt", "r");
+    if (pi_file == NULL) {
+        printf("can't find pi.txt");
+        return EXIT_FAILURE;
+    }
+    char * buffer;
+    char * calc_buffer = NULL;
+    long   numbytes;
+    // Get the number of bytes
+    fseek(pi_file, 0L, SEEK_END);
+    numbytes = ftell(pi_file);
+
+    // reset the file position indicator to
+    // the beginning of the file
+    fseek(pi_file, 0L, SEEK_SET);
+
+    // grab sufficient memory for the
+    // buffer to hold the text
+    buffer = (char*)calloc(numbytes, sizeof(char));
+
+    // memory error
+    if(buffer == NULL)
+        return EXIT_FAILURE;
+
+    // printf( "reading file\n" );
+    // copy all the text into the buffer
+    fread( buffer, sizeof(char), numbytes, pi_file );
+    fclose( pi_file );
+
+    // printf( "Getting pi string\n" );
+    // Write our calulated pi to the buffer
+    long i = 1;
+    long * i_ptr = &i;
+    calc_buffer = mpfr_get_str( calc_buffer, i_ptr, 10, precision, accumulator, MPFR_RNDN );
+
+
+    // Check our accuracy
+    for (unsigned long overlap = 0; overlap <= precision; ++overlap) {
+        // printf("Comparing %c to %c\n", buffer[overlap], calc_buffer[overlap]);
+        if ( buffer[overlap] != calc_buffer[overlap] ) {
+            printf("Comparing %c to %c\n", buffer[overlap], calc_buffer[overlap]);
+            printf("Calculation accurate to %ld decimal places\n", overlap);
+            break;
+        }
+    }
+
+    // free the memory we used for the buffer
+    free(buffer);
+    mpfr_free_str(calc_buffer);
+
+    return EXIT_SUCCESS;
+}
+
 int main( int argc, char *argv[] ) {
     // Handle command line arg for changing precision
 
@@ -158,7 +213,7 @@ int main( int argc, char *argv[] ) {
     clock_t start_time = clock();
     clock_t checkpoint;
     for (unsigned long k = 0; k <= iterations; ++k) {
-        if (k == iterations || (k > 0 && k % 2000 == 0)) {
+        if (k == iterations || (k > 0 && k % 10000 == 0)) {
             checkpoint = clock() - start_time;
             printf("%ld iterations complete in %fs\n", k, (double)checkpoint / CLOCKS_PER_SEC);
         }
@@ -175,60 +230,12 @@ int main( int argc, char *argv[] ) {
     mpfr_out_str( stdout, 10, 50, accumulator, MPFR_RNDN );
     printf( "\n" );
 
-    FILE * pi_file = fopen("pi.txt", "r");
-    if (pi_file == NULL) {
-        printf("can't find pi.txt");
-        return EXIT_FAILURE;
-    }
-    char * buffer;
-    char * calc_buffer = NULL;
-    long   numbytes;
-    // Get the number of bytes
-    fseek(pi_file, 0L, SEEK_END);
-    numbytes = ftell(pi_file);
-
-    // reset the file position indicator to
-    // the beginning of the file
-    fseek(pi_file, 0L, SEEK_SET);
-
-    // grab sufficient memory for the
-    // buffer to hold the text
-    buffer = (char*)calloc(numbytes, sizeof(char));
-
-    // memory error
-    if(buffer == NULL)
-        return 1;
-
-    // printf( "reading file\n" );
-    // copy all the text into the buffer
-    fread( buffer, sizeof(char), numbytes, pi_file );
-    fclose( pi_file );
-
-    // printf( "Getting pi string\n" );
-    // Write our calulated pi to the buffer
-    long i = 1;
-    long * i_ptr = &i;
-    calc_buffer = mpfr_get_str( calc_buffer, i_ptr, 10, precision, accumulator, MPFR_RNDN );
-
-
-    // Check our accuracy
-    for (unsigned long overlap = 0; overlap <= precision; ++overlap) {
-        // printf("Comparing %c to %c\n", buffer[overlap], calc_buffer[overlap]);
-        if ( buffer[overlap] != calc_buffer[overlap] ) {
-            printf("Comparing %c to %c\n", buffer[overlap], calc_buffer[overlap]);
-            printf("Calculation accurate to %ld decimal places\n", overlap);
-            break;
-        }
-    }
-
-    // free the memory we used for the buffer
-    free(buffer);
-    mpfr_free_str(calc_buffer);
+    int result = check_results(accumulator, precision);
 
     // Release resources associated with the multi-precision floats.
     mpfr_clear( accumulator );
     // Clear the memo struct
     memo_destroy(&k_memo);
 
-    return EXIT_SUCCESS;
+    return result;
 }
