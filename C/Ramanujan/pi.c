@@ -213,7 +213,7 @@ int main( int argc, char *argv[] ) {
     clock_t start_time = clock();
     clock_t checkpoint;
     for (unsigned long k = 0; k <= iterations; ++k) {
-        if (k == iterations || (k > 0 && k % 10000 == 0)) {
+        if (k == iterations || (k > 0 && k % 2000 == 0)) {
             checkpoint = clock() - start_time;
             printf("%ld iterations complete in %fs\n", k, (double)checkpoint / CLOCKS_PER_SEC);
         }
