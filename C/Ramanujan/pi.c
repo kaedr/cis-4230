@@ -9,6 +9,7 @@
 #include <gmp.h>
 #include <mpfr.h>
 #include <omp.h>
+#include <mpi.h>
 
 #define DECIMAL_PRECISION    10000   // Digits of precision
 
@@ -193,20 +194,30 @@ int check_results(mpfr_t accumulator, int precision) {
     return EXIT_SUCCESS;
 }
 
-void thread_work(mpfr_t accumulators[], struct Memo k_memos[], unsigned int threads, unsigned int iterations) {
+void thread_work(
+        mpfr_t accumulators[], struct Memo k_memos[], unsigned int threads,
+        unsigned int iterations, int number_of_nodes, int local_rank
+    ) {
     #pragma omp parallel
     {
 
         double start_time;
         double checkpoint;
         unsigned int TID = omp_get_thread_num();
-        if ( TID == 0 ) {
+        // Make sure we start in the right place
+        unsigned int thread_local_offset = (local_rank * threads) + TID;
+        // Increment by threads * nodes
+        unsigned int increment = number_of_nodes * threads;
+        // How often to output
+        unsigned int interval = 100 * increment;
+
+        if ( local_rank == 0 && TID == 0 ) {
             // Replacing clock() with omp_get_wtime() to correctly handle threading
             start_time = omp_get_wtime();
         }
 
-        for (unsigned int k = TID; k <= iterations; k += threads) {
-            if (TID == 0 && k > 0 && k % 2000 == 0) {
+        for (unsigned int k = thread_local_offset; k <= iterations; k += increment) {
+            if ( local_rank == 0 && TID == 0 && k > 0 && k % interval == 0) {
                 checkpoint = omp_get_wtime() - start_time;
                 // Because clock counts cpu time, it advances
                 printf("%u iterations complete in %fs\n", k, checkpoint);
@@ -216,7 +227,7 @@ void thread_work(mpfr_t accumulators[], struct Memo k_memos[], unsigned int thre
             // print_memo(&k_memo);
             update_accumulator( &k_memos[TID], accumulators[TID]);
         }
-        if (TID == 0) {
+        if ( local_rank == 0 && TID == 0 ) {
             checkpoint = omp_get_wtime() - start_time;
             // Because clock counts cpu time, it advances
             printf("%u iterations complete in %fs\n", iterations, checkpoint);
@@ -225,8 +236,18 @@ void thread_work(mpfr_t accumulators[], struct Memo k_memos[], unsigned int thre
 }
 
 int main( int argc, char *argv[] ) {
-    // Handle command line arg for changing precision
+    int number_of_nodes;
+    int local_rank;
+    int source_node;
+    const int destination_node = 0;
+    const int tag_value = 8675309;
+    MPI_Status status;
 
+    MPI_Init( &argc, &argv );
+    MPI_Comm_size( MPI_COMM_WORLD, &number_of_nodes );
+    MPI_Comm_rank( MPI_COMM_WORLD, &local_rank );
+
+    // Handle command line arg for changing precision
     char *char_pointer;
     unsigned long precision = DECIMAL_PRECISION;
     if (argc > 1) {
@@ -244,6 +265,12 @@ int main( int argc, char *argv[] ) {
     // Find out how many threads we'll be working with
     unsigned int threads = omp_get_max_threads();
 
+    if ( local_rank == 0 && number_of_nodes > threads ) {
+        printf("You'll need to do something different with accumulators for this to work");
+        MPI_Finalize( );
+        return EXIT_FAILURE;
+    }
+
     // Set up our accumulators and memos
     mpfr_t accumulators[threads];
     struct Memo k_memos[threads];
@@ -260,12 +287,45 @@ int main( int argc, char *argv[] ) {
     printf("Making %u iterations...\n", iterations);
 
     // Do the work
-    thread_work(accumulators, k_memos, threads, iterations);
+    thread_work(accumulators, k_memos, threads, iterations, number_of_nodes, local_rank);
 
-    // collect the work
+    // collect thread work
     for (int i = 1; i < threads; ++i) {
         mpfr_add(accumulators[0], accumulators[0], accumulators[i], MPFR_RNDN );
     }
+
+    // Collect node work
+    // Worth noting, there's some of this that doesn't strictly need to happen on all nodes
+    // But for now I'm not worried about the time wasted by a few operations at collection.
+    // 1. Prep for serialization
+    char * send_buffer;
+    size_t send_buffer_size;
+    FILE * mpfr_t_stream = open_memstream(&send_buffer, &send_buffer_size);
+    // 2. Serialize to stream
+    mpfr_fpif_export(mpfr_t_stream, accumulators[0]);
+    fclose(mpfr_t_stream);
+
+    // 3. Prep a space to gather info about the length of what we'll receive
+    size_t buffer_sizes[number_of_nodes];
+    // 4. Gather up the length info that'll need to receive the accumulators
+    MPI_Gather(&send_buffer_size, 1, MPI_UNSIGNED_LONG, buffer_sizes, 1, MPI_UNSIGNED_LONG, destination_node, MPI_COMM_WORLD);
+
+    // I went with != here so that the sends come before receives in code, for my own mental clarity
+    if ( local_rank != 0 ) {
+        MPI_Send(send_buffer, send_buffer_size, MPI_BYTE, destination_node, tag_value, MPI_COMM_WORLD);
+    } else {
+        // Main node collects
+        MPI_Status status;
+        for ( source_node = 1; source_node < number_of_nodes; ++source_node ) {
+            char byte_bin[buffer_sizes[source_node]];
+            MPI_Recv(byte_bin, buffer_sizes[source_node], MPI_BYTE, source_node, tag_value, MPI_COMM_WORLD, &status);
+            mpfr_t_stream = fmemopen(byte_bin, buffer_sizes[source_node], "rb");
+            // I'm reusing the accumulators array here, which is safe because of an earlier check
+            mpfr_fpif_import(accumulators[source_node], mpfr_t_stream);
+            mpfr_add(accumulators[0], accumulators[0], accumulators[source_node], MPFR_RNDN );
+        }
+    }
+
 
     // account for the 1/pi thing
     mpfr_ui_div( accumulators[0], 1UL, accumulators[0], MPFR_RNDN );
@@ -284,5 +344,6 @@ int main( int argc, char *argv[] ) {
         memo_destroy(&k_memos[i]);
     }
 
+    MPI_Finalize( );
     return result;
 }
