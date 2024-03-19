@@ -206,7 +206,7 @@ void thread_work(mpfr_t accumulators[], struct Memo k_memos[], unsigned int thre
         }
 
         for (unsigned int k = TID; k <= iterations; k += threads) {
-            if ( k == iterations || (TID == 0 && k > 0 && k % 2000 == 0) ) {
+            if (TID == 0 && k > 0 && k % 2000 == 0) {
                 checkpoint = omp_get_wtime() - start_time;
                 // Because clock counts cpu time, it advances
                 printf("%u iterations complete in %fs\n", k, checkpoint);
@@ -215,6 +215,11 @@ void thread_work(mpfr_t accumulators[], struct Memo k_memos[], unsigned int thre
             advance_to_n( &k_memos[TID], k );
             // print_memo(&k_memo);
             update_accumulator( &k_memos[TID], accumulators[TID]);
+        }
+        if (TID == 0) {
+            checkpoint = omp_get_wtime() - start_time;
+            // Because clock counts cpu time, it advances
+            printf("%u iterations complete in %fs\n", iterations, checkpoint);
         }
     }
 }
