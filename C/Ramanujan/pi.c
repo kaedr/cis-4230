@@ -206,7 +206,7 @@ void thread_work(mpfr_t accumulators[], struct Memo k_memos[], unsigned int thre
         }
 
         for (unsigned int k = TID; k <= iterations; k += threads) {
-            if (TID == 0 && k > 0 && k % 2000 == 0) {
+            if (TID == 0 && k > 0 && k % 4000 == 0) {
                 checkpoint = omp_get_wtime() - start_time;
                 // Because clock counts cpu time, it advances
                 printf("%u iterations complete in %fs\n", k, checkpoint);
@@ -237,6 +237,15 @@ int main( int argc, char *argv[] ) {
             precision = converted;
         }
     }
+    // Handle command line arg for changing thread pool
+    if (argc > 2) {
+        errno = 0;
+        long converted = strtol(argv[2], &char_pointer, 10);
+
+        if (errno == 0 && *char_pointer == '\0' && converted > 0 && converted <= __LONG_MAX__) {
+            omp_set_num_threads(converted);
+        }
+    }
 
     // How many bits are needed to achieve the desired decimal precision?
     unsigned int desired_precision = (int)ceil( precision * ( log( 10 ) / log( 2 ) ) );
@@ -257,7 +266,7 @@ int main( int argc, char *argv[] ) {
     // For practical purposes we seem to get 7 digits precision per iteration
     // The +1 is to ensure we don't get shortchanged by the integer division
     unsigned int iterations = (precision / 7) + 1;
-    printf("Making %u iterations...\n", iterations);
+    printf("Making %u iterations across %u threads\n", iterations, threads);
 
     // Do the work
     thread_work(accumulators, k_memos, threads, iterations);
