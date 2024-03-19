@@ -8,6 +8,7 @@
 
 #include <gmp.h>
 #include <mpfr.h>
+#include <omp.h>
 
 #define DECIMAL_PRECISION    10000   // Digits of precision
 
@@ -15,7 +16,7 @@
 struct Memo {
     // Below are expressed the calculations of these terms
     // for any future k (which we'll call n)
-    unsigned long k;
+    unsigned int k;
     // (4n)! = (4k!) * 4n * 4(n-1) ... 4(k+1)
     mpz_t four_k_factorial;
     // n!^4 = k!^4 * n^4 * (n-1)^4 ... (k+1)^4
@@ -60,7 +61,7 @@ void memo_destroy(struct Memo *k_memo) {
 }
 
 void print_memo(struct Memo *k_memo) {
-    printf ("Memo { k : %ld || ", k_memo->k );
+    printf ("Memo { k : %u || ", k_memo->k );
     gmp_printf ("26390k : %Zd || ", k_memo->k_26390);
     gmp_printf ("396^4k : %Zd || ", k_memo->three_ninety_six_to_four_k);
     gmp_printf ("4k! : %Zd || ", k_memo->four_k_factorial);
@@ -69,9 +70,9 @@ void print_memo(struct Memo *k_memo) {
 }
 
 // (4n)! = (4k!) * 4n * 4n-1 ... 4k+1
-void next_four_k_factorial(mpz_t current, unsigned long k, unsigned long n) {
-    for (unsigned long i = n; i > k; --i) {
-        unsigned long fact_term = 4*i;
+void next_four_k_factorial(mpz_t current, unsigned int k, unsigned int n) {
+    for (unsigned int i = n; i > k; --i) {
+        unsigned int fact_term = 4*i;
         mpz_mul_ui(current, current, fact_term);
         mpz_mul_ui(current, current, fact_term - 1);
         mpz_mul_ui(current, current, fact_term - 2);
@@ -80,10 +81,10 @@ void next_four_k_factorial(mpz_t current, unsigned long k, unsigned long n) {
 }
 
  // n!^4 = k!^4 * n^4 * (n-1)^4 ... (k+1)^4
-void next_k_factorial_fourth(mpz_t current, unsigned long k, unsigned long n) {
+void next_k_factorial_fourth(mpz_t current, unsigned int k, unsigned int n) {
     mpz_t n_minus_x_fourth;
     mpz_init( n_minus_x_fourth );
-    for (unsigned long i = n; i > k; --i) {
+    for (unsigned int i = n; i > k; --i) {
         mpz_ui_pow_ui(n_minus_x_fourth, i, 4UL); // (n-x)^4
         mpz_mul(current, current, n_minus_x_fourth);
     }
@@ -93,12 +94,12 @@ void next_k_factorial_fourth(mpz_t current, unsigned long k, unsigned long n) {
 }
 
 // 26390n = 26390k + 26390(n-k)
-void next_k_26390(mpz_t current, unsigned long k, unsigned long n) {
+void next_k_26390(mpz_t current, unsigned int k, unsigned int n) {
     mpz_add_ui(current, current, 26390 * (n-k));
 }
 
 // 396^4n = 396^4k * 396^4(n-k)
-void next_three_ninety_six_to_four_k(mpz_t current, unsigned long k, unsigned long n) {
+void next_three_ninety_six_to_four_k(mpz_t current, unsigned int k, unsigned int n) {
     mpz_t three_ninety_six_to_four_n_minus_k;
     mpz_init( three_ninety_six_to_four_n_minus_k );
     mpz_ui_pow_ui(three_ninety_six_to_four_n_minus_k, 396UL, 4UL*(n-k));
@@ -108,7 +109,7 @@ void next_three_ninety_six_to_four_k(mpz_t current, unsigned long k, unsigned lo
     mpz_clear( three_ninety_six_to_four_n_minus_k );
 }
 
-void advance_to_n(struct Memo *k_memo, unsigned long n) {
+void advance_to_n(struct Memo *k_memo, unsigned int n) {
     next_four_k_factorial(k_memo->four_k_factorial, k_memo->k, n);
     next_k_factorial_fourth(k_memo->k_factorial_fourth, k_memo->k, n);
     next_k_26390(k_memo->k_26390, k_memo->k, n);
@@ -137,7 +138,7 @@ void update_accumulator(struct Memo *k_memo, mpfr_t accumulator) {
     mpfr_add( accumulator, accumulator, k_memo->term, MPFR_RNDN );
 }
 
-int check_results(mpfr_t accumulator, long precision) {
+int check_results(mpfr_t accumulator, int precision) {
 
     FILE * pi_file = fopen("pi.txt", "r");
     if (pi_file == NULL) {
@@ -176,11 +177,11 @@ int check_results(mpfr_t accumulator, long precision) {
 
 
     // Check our accuracy
-    for (unsigned long overlap = 0; overlap <= precision; ++overlap) {
+    for (unsigned int overlap = 0; overlap <= precision; ++overlap) {
         // printf("Comparing %c to %c\n", buffer[overlap], calc_buffer[overlap]);
         if ( buffer[overlap] != calc_buffer[overlap] ) {
             printf("Comparing %c to %c\n", buffer[overlap], calc_buffer[overlap]);
-            printf("Calculation accurate to %ld decimal places\n", overlap);
+            printf("Calculation accurate to %u decimal places\n", overlap);
             break;
         }
     }
@@ -190,6 +191,32 @@ int check_results(mpfr_t accumulator, long precision) {
     mpfr_free_str(calc_buffer);
 
     return EXIT_SUCCESS;
+}
+
+void thread_work(mpfr_t accumulators[], struct Memo k_memos[], unsigned int threads, unsigned int iterations) {
+    #pragma omp parallel
+    {
+
+        double start_time;
+        double checkpoint;
+        unsigned int TID = omp_get_thread_num();
+        if ( TID == 0 ) {
+            // Replacing clock() with omp_get_wtime() to correctly handle threading
+            start_time = omp_get_wtime();
+        }
+
+        for (unsigned int k = TID; k <= iterations; k += threads) {
+            if ( k == iterations || (TID == 0 && k > 0 && k % 2000 == 0) ) {
+                checkpoint = omp_get_wtime() - start_time;
+                // Because clock counts cpu time, it advances
+                printf("%u iterations complete in %fs\n", k, checkpoint);
+            }
+            // printf("Thread %u executing iteration %u\n", TID, k);
+            advance_to_n( &k_memos[TID], k );
+            // print_memo(&k_memo);
+            update_accumulator( &k_memos[TID], accumulators[TID]);
+        }
+    }
 }
 
 int main( int argc, char *argv[] ) {
@@ -208,42 +235,49 @@ int main( int argc, char *argv[] ) {
 
     // How many bits are needed to achieve the desired decimal precision?
     unsigned int desired_precision = (int)ceil( precision * ( log( 10 ) / log( 2 ) ) );
-    mpfr_t accumulator;
-    struct Memo k_memo;
 
-    mpfr_init2( accumulator, desired_precision );
-    mpfr_set_d( accumulator, 0.0, MPFR_RNDN );
-    memo_init( &k_memo, desired_precision );
+    // Find out how many threads we'll be working with
+    unsigned int threads = omp_get_max_threads();
 
-    unsigned long iterations = precision / 7;
-    printf("Making %ld iterations...\n", iterations);
-    // print_memo(&k_memo);
-    clock_t start_time = clock();
-    clock_t checkpoint;
-    for (unsigned long k = 0; k <= iterations; ++k) {
-        if (k == iterations || (k > 0 && k % 2000 == 0)) {
-            checkpoint = clock() - start_time;
-            printf("%ld iterations complete in %fs\n", k, (double)checkpoint / CLOCKS_PER_SEC);
-        }
-        advance_to_n( &k_memo, k );
-        // print_memo(&k_memo);
-        update_accumulator( &k_memo, accumulator);
+    // Set up our accumulators and memos
+    mpfr_t accumulators[threads];
+    struct Memo k_memos[threads];
+
+    for (int i = 0; i < threads; ++i) {
+        mpfr_init2( accumulators[i], desired_precision );
+        mpfr_set_d( accumulators[i], 0.0, MPFR_RNDN );
+        memo_init( &k_memos[i], desired_precision );
+    }
+
+    // For practical purposes we seem to get 7 digits precision per iteration
+    // The +1 is to ensure we don't get shortchanged by the integer division
+    unsigned int iterations = (precision / 7) + 1;
+    printf("Making %u iterations...\n", iterations);
+
+    // Do the work
+    thread_work(accumulators, k_memos, threads, iterations);
+
+    // collect the work
+    for (int i = 1; i < threads; ++i) {
+        mpfr_add(accumulators[0], accumulators[0], accumulators[i], MPFR_RNDN );
     }
 
     // account for the 1/pi thing
-    mpfr_ui_div( accumulator, 1UL, accumulator, MPFR_RNDN );
+    mpfr_ui_div( accumulators[0], 1UL, accumulators[0], MPFR_RNDN );
 
     // Print the answer.
     printf( "pi = " );
-    mpfr_out_str( stdout, 10, 50, accumulator, MPFR_RNDN );
+    mpfr_out_str( stdout, 10, 50, accumulators[0], MPFR_RNDN );
     printf( "\n" );
 
-    int result = check_results(accumulator, precision);
+    int result = check_results(accumulators[0], precision);
 
-    // Release resources associated with the multi-precision floats.
-    mpfr_clear( accumulator );
-    // Clear the memo struct
-    memo_destroy(&k_memo);
+    for (int i = 0; i < threads; ++i) {
+        // Release resources associated with the multi-precision floats.
+        mpfr_clear( accumulators[i] );
+        // Clear the memo struct
+        memo_destroy(&k_memos[i]);
+    }
 
     return result;
 }
