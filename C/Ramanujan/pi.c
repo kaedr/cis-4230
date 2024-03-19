@@ -8,6 +8,7 @@
 
 #include <gmp.h>
 #include <mpfr.h>
+#include <omp.h>
 
 #define DECIMAL_PRECISION    10000   // Digits of precision
 
@@ -218,12 +219,12 @@ int main( int argc, char *argv[] ) {
     unsigned long iterations = precision / 7;
     printf("Making %ld iterations...\n", iterations);
     // print_memo(&k_memo);
-    clock_t start_time = clock();
-    clock_t checkpoint;
+    double start_time = omp_get_wtime();
+    double checkpoint;
     for (unsigned long k = 0; k <= iterations; ++k) {
         if (k == iterations || (k > 0 && k % 2000 == 0)) {
-            checkpoint = clock() - start_time;
-            printf("%ld iterations complete in %fs\n", k, (double)checkpoint / CLOCKS_PER_SEC);
+            checkpoint = omp_get_wtime() - start_time;
+            printf("%ld iterations complete in %fs\n", k, checkpoint);
         }
         advance_to_n( &k_memo, k );
         // print_memo(&k_memo);
