@@ -284,7 +284,10 @@ int main( int argc, char *argv[] ) {
     // For practical purposes we seem to get 7 digits precision per iteration
     // The +1 is to ensure we don't get shortchanged by the integer division
     unsigned int iterations = (precision / 7) + 1;
-    printf("Making %u iterations...\n", iterations);
+
+    if ( local_rank == 0 ) {
+        printf("Making %u iterations...\n", iterations);
+    }
 
     // Do the work
     thread_work(accumulators, k_memos, threads, iterations, number_of_nodes, local_rank);
@@ -310,6 +313,7 @@ int main( int argc, char *argv[] ) {
     // 4. Gather up the length info that'll need to receive the accumulators
     MPI_Gather(&send_buffer_size, 1, MPI_UNSIGNED_LONG, buffer_sizes, 1, MPI_UNSIGNED_LONG, destination_node, MPI_COMM_WORLD);
 
+    int result;
     // I went with != here so that the sends come before receives in code, for my own mental clarity
     if ( local_rank != 0 ) {
         MPI_Send(send_buffer, send_buffer_size, MPI_BYTE, destination_node, tag_value, MPI_COMM_WORLD);
@@ -324,18 +328,19 @@ int main( int argc, char *argv[] ) {
             mpfr_fpif_import(accumulators[source_node], mpfr_t_stream);
             mpfr_add(accumulators[0], accumulators[0], accumulators[source_node], MPFR_RNDN );
         }
+
+        // account for the 1/pi thing
+        mpfr_ui_div( accumulators[0], 1UL, accumulators[0], MPFR_RNDN );
+
+        // Print the answer.
+        printf( "pi = " );
+        mpfr_out_str( stdout, 10, 50, accumulators[0], MPFR_RNDN );
+        printf( "\n" );
+
+        result = check_results(accumulators[0], precision);
     }
 
 
-    // account for the 1/pi thing
-    mpfr_ui_div( accumulators[0], 1UL, accumulators[0], MPFR_RNDN );
-
-    // Print the answer.
-    printf( "pi = " );
-    mpfr_out_str( stdout, 10, 50, accumulators[0], MPFR_RNDN );
-    printf( "\n" );
-
-    int result = check_results(accumulators[0], precision);
 
     for (int i = 0; i < threads; ++i) {
         // Release resources associated with the multi-precision floats.
