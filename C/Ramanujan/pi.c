@@ -209,7 +209,7 @@ void thread_work(
         // Increment by threads * nodes
         unsigned int increment = number_of_nodes * threads;
         // How often to output
-        unsigned int interval = 100 * increment;
+        unsigned int interval = 4000;
 
         if ( local_rank == 0 && TID == 0 ) {
             // Replacing clock() with omp_get_wtime() to correctly handle threading
@@ -258,6 +258,15 @@ int main( int argc, char *argv[] ) {
             precision = converted;
         }
     }
+    // Handle command line arg for changing thread pool
+    if (argc > 2) {
+        errno = 0;
+        long converted = strtol(argv[2], &char_pointer, 10);
+
+        if (errno == 0 && *char_pointer == '\0' && converted > 0 && converted <= __LONG_MAX__) {
+            omp_set_num_threads(converted);
+        }
+    }
 
     // How many bits are needed to achieve the desired decimal precision?
     unsigned int desired_precision = (int)ceil( precision * ( log( 10 ) / log( 2 ) ) );
@@ -286,7 +295,7 @@ int main( int argc, char *argv[] ) {
     unsigned int iterations = (precision / 7) + 1;
 
     if ( local_rank == 0 ) {
-        printf("Making %u iterations...\n", iterations);
+        printf("Making %u iterations across %u threads\n", iterations, threads);
     }
 
     // Do the work
