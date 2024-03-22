@@ -26,7 +26,7 @@ struct Memo {
     mpz_t three_ninety_six_to_four_k;
     // Store the sqrt(8) /9801 factor
     mpfr_t factor;
-    // Try to avoid reinitializing the term each loop
+    // Avoid reinitializing the term each loop
     mpfr_t term;
 };
 
@@ -129,10 +129,6 @@ void update_accumulator(struct Memo *k_memo, mpfr_t accumulator) {
     // Divide by k!^4
     mpfr_div_z( k_memo->term, k_memo->term, k_memo->k_factorial_fourth, MPFR_RNDN );
 
-
-    // multiply the factor into our term
-    mpfr_mul( k_memo->term, k_memo->term, k_memo->factor, MPFR_RNDN );
-
     // Update accumulator
     mpfr_add( accumulator, accumulator, k_memo->term, MPFR_RNDN );
 }
@@ -229,6 +225,11 @@ int main( int argc, char *argv[] ) {
         // print_memo(&k_memo);
         update_accumulator( &k_memo, accumulator);
     }
+
+
+
+    // multiply the factor into our accumulator
+    mpfr_mul( accumulator, accumulator, k_memo.factor, MPFR_RNDN );
 
     // account for the 1/pi thing
     mpfr_ui_div( accumulator, 1UL, accumulator, MPFR_RNDN );
