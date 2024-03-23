@@ -130,6 +130,9 @@ void update_accumulator(struct Memo *k_memo, mpfr_t accumulator) {
     // Divide by k!^4
     mpfr_div_z( k_memo->term, k_memo->term, k_memo->k_factorial_fourth, MPFR_RNDN );
 
+    // multiply the factor into our accumulator
+    // mpfr_mul( k_memo->term, k_memo->term, k_memo->factor, MPFR_RNDN );
+
     // Update accumulator
     mpfr_add( accumulator, accumulator, k_memo->term, MPFR_RNDN );
 }
@@ -212,22 +215,21 @@ int main( int argc, char *argv[] ) {
     mpfr_set_d( accumulator, 0.0, MPFR_RNDN );
     memo_init( &k_memo, desired_precision );
 
+    // I found that each iteration adds closer to 7 digit of precision
     unsigned long iterations = precision / 7;
     printf("Making %ld iterations...\n", iterations);
     // print_memo(&k_memo);
     double start_time = omp_get_wtime();
     double checkpoint;
     for (unsigned long k = 0; k <= iterations; ++k) {
+        advance_to_n( &k_memo, k );
+        // print_memo(&k_memo);
+        update_accumulator( &k_memo, accumulator);
         if (k == iterations || (k > 0 && k % 2000 == 0)) {
             checkpoint = omp_get_wtime() - start_time;
             printf("%ld iterations complete in %fs\n", k, checkpoint);
         }
-        advance_to_n( &k_memo, k );
-        // print_memo(&k_memo);
-        update_accumulator( &k_memo, accumulator);
     }
-
-
 
     // multiply the factor into our accumulator
     mpfr_mul( accumulator, accumulator, k_memo.factor, MPFR_RNDN );
