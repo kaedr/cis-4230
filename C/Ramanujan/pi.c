@@ -214,13 +214,13 @@ int main( int argc, char *argv[] ) {
     double start_time = omp_get_wtime();
     double checkpoint;
     for (unsigned long k = 0; k <= iterations; ++k) {
+        advance_to_n( &k_memo, k );
+        // print_memo(&k_memo);
+        update_accumulator( &k_memo, accumulator, desired_precision);
         if (k == iterations || (k > 0 && k % 4000 == 0)) {
             checkpoint = omp_get_wtime() - start_time;
             printf("%ld iterations complete in %fs\n", k, checkpoint);
         }
-        advance_to_n( &k_memo, k );
-        // print_memo(&k_memo);
-        update_accumulator( &k_memo, accumulator, desired_precision);
     }
 
     // account for the 1/pi thing
