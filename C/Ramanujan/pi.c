@@ -25,22 +25,39 @@ struct Memo {
     mpz_t k_26390;
     // 396^4n = 396^4k * 396^4(n-k)
     mpz_t three_ninety_six_to_four_k;
+    // Store the sqrt(8) /9801 factor
+    mpfr_t factor;
+    // Avoid reinitializing the term each loop
+    mpfr_t term;
 };
 
 // Intialize the Memo to a useful starting state
-void memo_init(struct Memo *k_memo) {
+void memo_init(struct Memo *k_memo, unsigned int desired_precision) {
     k_memo->k = 0;
+    // Init the oversized ints
     mpz_init_set_ui( k_memo->four_k_factorial, 1UL );
     mpz_init_set_ui( k_memo->k_factorial_fourth, 1UL );
     mpz_init_set_ui( k_memo->k_26390, 0UL );
     mpz_init_set_ui( k_memo->three_ninety_six_to_four_k, 1UL );
+
+    // Init the giant floats
+    mpfr_init2( k_memo->factor, desired_precision );
+    mpfr_init2( k_memo->term, desired_precision );
+    // And populate initial value of factor
+    mpfr_sqrt_ui( k_memo->factor, 8UL, MPFR_RNDN );
+    mpfr_div_ui( k_memo->factor, k_memo->factor, 9801UL, MPFR_RNDN );
 }
 
 void memo_destroy(struct Memo *k_memo) {
+    // Clean up oversized ints
     mpz_clear( k_memo->four_k_factorial );
     mpz_clear( k_memo->k_factorial_fourth );
     mpz_clear( k_memo->k_26390 );
     mpz_clear( k_memo->three_ninety_six_to_four_k );
+
+    // Clean up giant floats
+    mpfr_clear( k_memo->term );
+    mpfr_clear( k_memo->factor );
 }
 
 void print_memo(struct Memo *k_memo) {
@@ -100,34 +117,24 @@ void advance_to_n(struct Memo *k_memo, unsigned long n) {
     k_memo->k = n;
 }
 
-void update_accumulator(const struct Memo *k_memo, mpfr_t accumulator, int desired_precision) {
-    mpfr_t term;
-    mpfr_init2( term, desired_precision );
+void update_accumulator(struct Memo *k_memo, mpfr_t accumulator) {
+    // Because our first action is to set the value of the term,
+    // We avoid having to do any other cleanup each loop
     // Set it to 26390k + 1103
-    mpfr_set_z( term, k_memo->k_26390, MPFR_RNDN );
-    mpfr_add_ui( term, term, 1103UL, MPFR_RNDN );
+    mpfr_set_z( k_memo->term, k_memo->k_26390, MPFR_RNDN );
+    mpfr_add_ui( k_memo->term, k_memo->term, 1103UL, MPFR_RNDN );
     // Divide by 396^4k
-    mpfr_div_z( term, term, k_memo->three_ninety_six_to_four_k, MPFR_RNDN );
+    mpfr_div_z( k_memo->term, k_memo->term, k_memo->three_ninety_six_to_four_k, MPFR_RNDN );
     // Multiply by 4k!
-    mpfr_mul_z( term, term, k_memo->four_k_factorial, MPFR_RNDN );
+    mpfr_mul_z( k_memo->term, k_memo->term, k_memo->four_k_factorial, MPFR_RNDN );
     // Divide by k!^4
-    mpfr_div_z( term, term, k_memo->k_factorial_fourth, MPFR_RNDN );
+    mpfr_div_z( k_memo->term, k_memo->term, k_memo->k_factorial_fourth, MPFR_RNDN );
 
-    // introduce the sqrt(8) /9801 factor
-    mpfr_t factor;
-    mpfr_init2( factor, desired_precision );
-    mpfr_sqrt_ui( factor, 8UL, MPFR_RNDN );
-    mpfr_div_ui( factor, factor, 9801UL, MPFR_RNDN );
-
-    // multiply the factor into our term
-    mpfr_mul( term, term, factor, MPFR_RNDN );
+    // multiply the factor into our accumulator
+    // mpfr_mul( k_memo->term, k_memo->term, k_memo->factor, MPFR_RNDN );
 
     // Update accumulator
-    mpfr_add( accumulator, accumulator, term, MPFR_RNDN );
-
-    // Free up temp
-    mpfr_clear( term );
-    mpfr_clear( factor );
+    mpfr_add( accumulator, accumulator, k_memo->term, MPFR_RNDN );
 }
 
 int check_results(mpfr_t accumulator, long precision) {
@@ -189,7 +196,7 @@ int main( int argc, char *argv[] ) {
     // Handle command line arg for changing precision
 
     char *char_pointer;
-    long precision = DECIMAL_PRECISION;
+    unsigned long precision = DECIMAL_PRECISION;
     if (argc > 1) {
         errno = 0;
         long converted = strtol(argv[1], &char_pointer, 10);
@@ -200,14 +207,15 @@ int main( int argc, char *argv[] ) {
     }
 
     // How many bits are needed to achieve the desired decimal precision?
-    const int desired_precision = (int)ceil( precision * ( log( 10 ) / log( 2 ) ) );
+    unsigned int desired_precision = (int)ceil( precision * ( log( 10 ) / log( 2 ) ) );
     mpfr_t accumulator;
     struct Memo k_memo;
 
     mpfr_init2( accumulator, desired_precision );
     mpfr_set_d( accumulator, 0.0, MPFR_RNDN );
-    memo_init( &k_memo );
+    memo_init( &k_memo, desired_precision );
 
+    // I found that each iteration adds closer to 7 digit of precision
     unsigned long iterations = precision / 7;
     printf("Making %ld iterations...\n", iterations);
     // print_memo(&k_memo);
@@ -216,12 +224,15 @@ int main( int argc, char *argv[] ) {
     for (unsigned long k = 0; k <= iterations; ++k) {
         advance_to_n( &k_memo, k );
         // print_memo(&k_memo);
-        update_accumulator( &k_memo, accumulator, desired_precision);
+        update_accumulator( &k_memo, accumulator);
         if (k == iterations || (k > 0 && k % 4000 == 0)) {
             checkpoint = omp_get_wtime() - start_time;
             printf("%ld iterations complete in %fs\n", k, checkpoint);
         }
     }
+
+    // multiply the factor into our accumulator
+    mpfr_mul( accumulator, accumulator, k_memo.factor, MPFR_RNDN );
 
     // account for the 1/pi thing
     mpfr_ui_div( accumulator, 1UL, accumulator, MPFR_RNDN );
