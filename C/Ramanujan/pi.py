@@ -12,16 +12,25 @@ def pi_formula():
         n_factorial_fourth = pow(math.factorial(n),4)
         n_26390_plus_1103 = (26390*n+1103)
         pow_term = pow(396,4*n)
-        print(f"{four_n_factorial} / {n_factorial_fourth} * {n_26390_plus_1103} / {pow_term}")
-        tmp = i*(four_n_factorial/n_factorial_fourth*n_26390_plus_1103/pow_term)
-        print(f"iteration value is: {tmp}")
+        print(f"{n_26390_plus_1103} / {pow_term} * {four_n_factorial} / {n_factorial_fourth}")
+        tmp = n_26390_plus_1103
+        print(f"term value is: {tmp:.30g}")
+        tmp /= pow_term
+        print(f"term value is: {tmp:.30g}")
+        tmp *= four_n_factorial
+        print(f"term value is: {tmp:.30g}")
+        tmp /= n_factorial_fourth
+        print(f"term value is: {tmp:.30g}")
         sum +=tmp
+        print(f"accumulator value is: {sum:.30g}")
 
-        if(abs(tmp) < 1e-15):
+        if(abs(tmp) < 1e-30):
             break
         n += 1
 
+    sum *= i
 
     return(1/sum)
 
-print("Pi value using Ramanujan Formula : ",pi_formula())
+pi = pi_formula()
+print(f"Pi value using Ramanujan Formula : {pi:.30g}")

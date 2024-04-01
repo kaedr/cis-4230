@@ -61,11 +61,12 @@ void memo_destroy(struct Memo *k_memo) {
 }
 
 void print_memo(struct Memo *k_memo) {
-    printf ("Memo { k : %ld || ", k_memo->k );
-    gmp_printf ("26390k : %Zd || ", k_memo->k_26390);
-    gmp_printf ("396^4k : %Zd || ", k_memo->three_ninety_six_to_four_k);
-    gmp_printf ("4k! : %Zd || ", k_memo->four_k_factorial);
-    gmp_printf ("k!^4 : %Zd }\n", k_memo->k_factorial_fourth);
+    printf ("Memo { k : %ld, ", k_memo->k );
+    gmp_printf ("26390k : %Zd, ", k_memo->k_26390);
+    gmp_printf ("396^4k : %Zd, ", k_memo->three_ninety_six_to_four_k);
+    gmp_printf ("4k! : %Zd, ", k_memo->four_k_factorial);
+    gmp_printf ("k!^4 : %Zd, ", k_memo->k_factorial_fourth);
+    mpfr_printf ("term : %.30Rg }\n", k_memo->term);
 
 }
 
@@ -123,12 +124,16 @@ void update_accumulator(struct Memo *k_memo, mpfr_t accumulator) {
     // Set it to 26390k + 1103
     mpfr_set_z( k_memo->term, k_memo->k_26390, MPFR_RNDN );
     mpfr_add_ui( k_memo->term, k_memo->term, 1103UL, MPFR_RNDN );
+    // mpfr_printf ("term : %.30Rg }\n", k_memo->term);
     // Divide by 396^4k
     mpfr_div_z( k_memo->term, k_memo->term, k_memo->three_ninety_six_to_four_k, MPFR_RNDN );
+    // mpfr_printf ("term : %.30Rg }\n", k_memo->term);
     // Multiply by 4k!
     mpfr_mul_z( k_memo->term, k_memo->term, k_memo->four_k_factorial, MPFR_RNDN );
+    // mpfr_printf ("term : %.30Rg }\n", k_memo->term);
     // Divide by k!^4
     mpfr_div_z( k_memo->term, k_memo->term, k_memo->k_factorial_fourth, MPFR_RNDN );
+    // mpfr_printf ("term : %.30Rg }\n", k_memo->term);
 
     // multiply the factor into our accumulator
     // mpfr_mul( k_memo->term, k_memo->term, k_memo->factor, MPFR_RNDN );
@@ -216,16 +221,16 @@ int main( int argc, char *argv[] ) {
     memo_init( &k_memo, desired_precision );
 
     // I found that each iteration adds closer to 7 digit of precision
-    unsigned long iterations = precision / 7;
+    unsigned long iterations = (int)ceil( precision / 7 );
     printf("Making %ld iterations...\n", iterations);
     // print_memo(&k_memo);
     double start_time = omp_get_wtime();
     double checkpoint;
     for (unsigned long k = 0; k <= iterations; ++k) {
         advance_to_n( &k_memo, k );
-        // print_memo(&k_memo);
         update_accumulator( &k_memo, accumulator);
-        if (k == iterations || (k > 0 && k % 4000 == 0)) {
+        // print_memo(&k_memo);
+        if (k == iterations || (k > 0 && k % 2000 == 0)) {
             checkpoint = omp_get_wtime() - start_time;
             printf("%ld iterations complete in %fs\n", k, checkpoint);
         }
