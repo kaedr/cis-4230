@@ -1,4 +1,4 @@
-import("common_pi.jl")
+include("common_pi.jl")
 
 
 function main()

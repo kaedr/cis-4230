@@ -1,3 +1,4 @@
+using Printf
 
 # For correct initial values, construct as:
 # Memo(0, 0, 1, 1, 1, 0.0)
@@ -29,7 +30,7 @@ end
 # n!^4 = k!^4 * n^4 * (n-1)^4 ... (k+1)^4
 function next_k_factorial_fourth(memo::Memo, next_k::UInt)
     for i in (memo.k + 1):next_k
-        memo.k_factorial_fourth *= i^4
+        memo.k_factorial_fourth *= BigInt(i)^4
     end
 end
 
@@ -40,7 +41,9 @@ end
 
 # 396^4n = 396^4k * 396^4(n-k)
 function next_three_ninety_six_to_four_k(memo::Memo, next_k::UInt)
-    memo.three_ninety_six_to_four_k *= 396 ^ 4(next_k - memo.k)
+    # In initially forgot to make this a bigint, which worked fine for Serial
+    # But broke as soon as the term overflowed an integer
+    memo.three_ninety_six_to_four_k *= BigInt(396) ^ 4(next_k - memo.k)
 end
 
 function advance_to_next_k(memo::Memo, next_k::UInt)
@@ -49,6 +52,7 @@ function advance_to_next_k(memo::Memo, next_k::UInt)
     next_k_26390(memo, next_k)
     next_three_ninety_six_to_four_k(memo, next_k)
     memo.k = next_k
+    # println(memo)
 end
 
 function calculate_term(memo::Memo)
@@ -68,6 +72,7 @@ function check_results(accumulator::BigFloat, target_precision::UInt)
     # Julia's functions for printing give up at 8k of text for format strings
     # So rather than string comparison, as I was doing before, we'll check
     # correctness against Julia's π builtin
-    difference = Float64((BigFloat(π) - accumulator) * target_precision)
-    println("Difference at $target_precision digits is $difference")
+    # println("Checking: $accumulator")
+    difference = (BigFloat(π) - accumulator) * target_precision
+    @printf "Difference at %ld digits is %.10f\n" target_precision difference
 end
