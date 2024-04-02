@@ -4,8 +4,6 @@ include("common_pi.jl")
 function thread_work(tid::UInt, iterations::UInt)
     k_memo = Memo(0, 0, 1, 1, 1, 0.0)
     accumulator = BigFloat(0.0)
-    prev = BigFloat(0.0)
-    prev_memo = Memo(0, 0, 1, 1, 1, 0.0)
     start_time = time()
     # Have to do tid - 1 because of Julia's 1 based everything
     for k in tid-1:nthreads():iterations
@@ -18,13 +16,6 @@ function thread_work(tid::UInt, iterations::UInt)
         if k > 0 && k % 2000 == 0
             checkpoint = time() - start_time
             Core.println("$k iterations complete in $checkpoint seconds")
-            if isinf(accumulator)
-                println("accumulator has become Inf")
-                println("prev was $prev")
-                println(prev_memo)
-            end
-            prev = accumulator
-            prev_memo = k_memo
         end
     end
     # Thread id 1 gives the final report
