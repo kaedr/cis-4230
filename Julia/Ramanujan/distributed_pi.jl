@@ -1,12 +1,16 @@
 using Distributed
+@everywhere using Base.Threads
 @everywhere include("common_pi.jl")
 
-@everywhere function thread_work(tid::UInt, iterations::UInt)
+const HOSTS = ["node1","node2","node3","node4"]
+const THREADS_PER_HOST::UInt = nthreads()
+
+@everywhere function thread_work(start_point::UInt, interval::UInt, iterations::UInt)
     k_memo = Memo(0, 0, 1, 1, 1, 0.0)
     accumulator = BigFloat(0.0)
     start_time = time()
-    # Have to do tid - 1 because of Julia's 1 based everything
-    for k in tid-1:nthreads():iterations
+
+    for k in start_point:interval:iterations
         advance_to_next_k(k_memo, k)
         calculate_term(k_memo)
         # Core.println("k: $k -> $(k_memo.term)")
@@ -18,11 +22,26 @@ using Distributed
             Core.println("$k iterations complete in $checkpoint seconds")
         end
     end
-    # Thread id 1 gives the final report
-    if tid == 1
-        checkpoint = time() - start_time
-        Core.println("$iterations iterations complete in $checkpoint seconds")
+
+    return accumulator
+end
+
+@everywhere function process_work(num_procs::UInt, num_threads::UInt, iterations::UInt)
+    # Account for Julia's 1 based indexing
+    start_point = Distributed.myid() - 1
+    interval = num_procs * num_threads
+    accumulator::BigFloat = 0.0
+    workers = Array{Task}(undef, num_threads)
+
+    # Account for Julia's inclusive ranges
+    for i::UInt in start_point:start_point + num_threads -1
+        workers[i] = Threads.@spawn thread_work(i, interval, iterations)
     end
+
+    for i in 1:num_threads
+        accumulator += fetch(workers[i])
+    end
+
     return accumulator
 end
 
@@ -39,17 +58,28 @@ function main()
     setrounding(BigFloat, RoundNearest)
 
     factor::BigFloat = sqrt(big(8)) / 9801
+
+    # Set up remote processors
+    # addprocs(HOSTS, exeflags=["-t $num_threads"])
+
     # I found that each iteration adds closer to 7 digit of precision
     iterations::UInt = ceil(desired_precision / 7)
-    nodes = nprocs()
-    println("Making $iterations iterations across $nodes processes")
+    nodes::UInt = nworkers()
+    println("Making $iterations iterations across $nodes processors with $THREADS_PER_HOST threads each")
 
     accumulator::BigFloat = 0.0
-    workers = Array{Future}(undef, num_procs)
+    result_futures = Array{Future}(undef, nprocs())
 
     start_time = time()
 
-    # Do work here
+    # Distribute work to processors (local and remote)
+    for worker in workers()
+        result_futures[worker] = Distributed.@spawnat worker process_work(nodes, THREADS_PER_HOST, iterations)
+    end
+
+    for worker in workers()
+        accumulator += fetch(result_futures[worker])
+    end
 
     checkpoint = time() - start_time
     println("$iterations iterations complete in $checkpoint seconds")
@@ -59,7 +89,7 @@ function main()
     # account for the 1/pi thing
     accumulator = 1 / accumulator
 
-    # println(accumulator)
+    println(accumulator)
 
     check_results(accumulator, desired_precision)
 end
