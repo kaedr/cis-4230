@@ -12,7 +12,7 @@ function thread_work(start_point::UInt, interval::UInt, iterations::UInt)
         accumulator += k_memo.term
         # This will only be run by one thread because only one will run the item
         # that is evenly divisble by 2000
-        if k > 0 && k % 2000 == 0
+        if k > 0 && k % 4000 == 0
             checkpoint = time() - start_time
             Core.println("$k iterations complete in $checkpoint seconds")
         end

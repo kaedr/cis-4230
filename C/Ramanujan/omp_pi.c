@@ -132,7 +132,7 @@ void update_accumulator(struct Memo *k_memo, mpfr_t accumulator) {
 
 
     // multiply the factor into our term
-    mpfr_mul( k_memo->term, k_memo->term, k_memo->factor, MPFR_RNDN );
+    // mpfr_mul( k_memo->term, k_memo->term, k_memo->factor, MPFR_RNDN );
 
     // Update accumulator
     mpfr_add( accumulator, accumulator, k_memo->term, MPFR_RNDN );
@@ -215,9 +215,6 @@ void thread_work(mpfr_t accumulators[], struct Memo k_memos[], unsigned int thre
             update_accumulator( &k_memos[TID], accumulators[TID]);
         }
         if (TID == 0) {
-            checkpoint = omp_get_wtime() - start_time;
-            // Because clock counts cpu time, it advances
-            printf("%u iterations complete in %fs\n", iterations, checkpoint);
         }
     }
 }
@@ -266,6 +263,9 @@ int main( int argc, char *argv[] ) {
     unsigned int iterations = (precision / 7) + 1;
     printf("Making %u iterations across %u threads\n", iterations, threads);
 
+    double start_time = omp_get_wtime();
+    double checkpoint;
+
     // Do the work
     thread_work(accumulators, k_memos, threads, iterations);
 
@@ -273,6 +273,12 @@ int main( int argc, char *argv[] ) {
     for (int i = 1; i < threads; ++i) {
         mpfr_add(accumulators[0], accumulators[0], accumulators[i], MPFR_RNDN );
     }
+
+    checkpoint = omp_get_wtime() - start_time;
+    printf("%u iterations complete in %fs\n", iterations, checkpoint);
+
+    // multiply the factor into our accumulator
+    mpfr_mul( accumulators[0], accumulators[0], k_memos[0].factor, MPFR_RNDN );
 
     // account for the 1/pi thing
     mpfr_ui_div( accumulators[0], 1UL, accumulators[0], MPFR_RNDN );

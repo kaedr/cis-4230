@@ -133,7 +133,7 @@ void update_accumulator(struct Memo *k_memo, mpfr_t accumulator) {
 
 
     // multiply the factor into our term
-    mpfr_mul( k_memo->term, k_memo->term, k_memo->factor, MPFR_RNDN );
+    // mpfr_mul( k_memo->term, k_memo->term, k_memo->factor, MPFR_RNDN );
 
     // Update accumulator
     mpfr_add( accumulator, accumulator, k_memo->term, MPFR_RNDN );
@@ -209,15 +209,13 @@ void thread_work(
         // Increment by threads * nodes
         unsigned int increment = number_of_nodes * threads;
         // How often to output
-        unsigned int interval = 4000;
+        unsigned int interval = 2000;
 
-        if ( local_rank == 0 && TID == 0 ) {
-            // Replacing clock() with omp_get_wtime() to correctly handle threading
-            start_time = omp_get_wtime();
-        }
+
+        start_time = omp_get_wtime();
 
         for (unsigned int k = thread_local_offset; k <= iterations; k += increment) {
-            if ( local_rank == 0 && TID == 0 && k > 0 && k % interval == 0) {
+            if ( k % interval == 0) {
                 checkpoint = omp_get_wtime() - start_time;
                 // Because clock counts cpu time, it advances
                 printf("%u iterations complete in %fs\n", k, checkpoint);
@@ -228,9 +226,6 @@ void thread_work(
             update_accumulator( &k_memos[TID], accumulators[TID]);
         }
         if ( local_rank == 0 && TID == 0 ) {
-            checkpoint = omp_get_wtime() - start_time;
-            // Because clock counts cpu time, it advances
-            printf("%u iterations complete in %fs\n", iterations, checkpoint);
         }
     }
 }
@@ -273,18 +268,13 @@ int main( int argc, char *argv[] ) {
 
     // Find out how many threads we'll be working with
     unsigned int threads = omp_get_max_threads();
-
-    if ( local_rank == 0 && number_of_nodes > threads ) {
-        printf("You'll need to do something different with accumulators for this to work");
-        MPI_Finalize( );
-        return EXIT_FAILURE;
-    }
+    unsigned int array_size = number_of_nodes > threads ? number_of_nodes : threads;
 
     // Set up our accumulators and memos
-    mpfr_t accumulators[threads];
-    struct Memo k_memos[threads];
+    mpfr_t accumulators[array_size];
+    struct Memo k_memos[array_size];
 
-    for (int i = 0; i < threads; ++i) {
+    for (int i = 0; i < array_size; ++i) {
         mpfr_init2( accumulators[i], desired_precision );
         mpfr_set_d( accumulators[i], 0.0, MPFR_RNDN );
         memo_init( &k_memos[i], desired_precision );
@@ -295,8 +285,11 @@ int main( int argc, char *argv[] ) {
     unsigned int iterations = (precision / 7) + 1;
 
     if ( local_rank == 0 ) {
-        printf("Making %u iterations across %u threads\n", iterations, threads);
+        printf("Making %u iterations across %u nodes with %u threads each\n", iterations, number_of_nodes, threads);
     }
+
+    double start_time = omp_get_wtime();
+    double checkpoint;
 
     // Do the work
     thread_work(accumulators, k_memos, threads, iterations, number_of_nodes, local_rank);
@@ -322,7 +315,8 @@ int main( int argc, char *argv[] ) {
     // 4. Gather up the length info that'll need to receive the accumulators
     MPI_Gather(&send_buffer_size, 1, MPI_UNSIGNED_LONG, buffer_sizes, 1, MPI_UNSIGNED_LONG, destination_node, MPI_COMM_WORLD);
 
-    int result;
+    int result = 0;
+
     // I went with != here so that the sends come before receives in code, for my own mental clarity
     if ( local_rank != 0 ) {
         MPI_Send(send_buffer, send_buffer_size, MPI_BYTE, destination_node, tag_value, MPI_COMM_WORLD);
@@ -337,6 +331,12 @@ int main( int argc, char *argv[] ) {
             mpfr_fpif_import(accumulators[source_node], mpfr_t_stream);
             mpfr_add(accumulators[0], accumulators[0], accumulators[source_node], MPFR_RNDN );
         }
+
+        checkpoint = omp_get_wtime() - start_time;
+        printf("%u iterations complete in %fs\n", iterations, checkpoint);
+
+        // multiply the factor into our accumulator
+        mpfr_mul( accumulators[0], accumulators[0], k_memos[0].factor, MPFR_RNDN );
 
         // account for the 1/pi thing
         mpfr_ui_div( accumulators[0], 1UL, accumulators[0], MPFR_RNDN );
