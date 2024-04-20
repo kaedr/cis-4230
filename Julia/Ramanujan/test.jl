@@ -34,6 +34,7 @@ end
 using Profile
 using PProf
 sample_size::UInt = 100
+spacing::UInt = 24
 
 # println("Running adjacent_k")
 # @time adjacent_k(sample_size)
@@ -50,10 +51,13 @@ sample_size::UInt = 100
 # Profile.print()
 # Profile.clear()
 
-spacing::UInt = 24
-println("Running spaced_k 24")
-@time spaced_k(sample_size, spacing)
-@time spaced_k(sample_size, spacing)
-Profile.Allocs.@profile sample_rate=1 spaced_k(sample_size, spacing)
-PProf.Allocs.pprof()
-Profile.Allocs.clear()
+# spacing::UInt = 24
+# println("Running spaced_k 24")
+# @time spaced_k(sample_size, spacing)
+# @time spaced_k(sample_size, spacing)
+# @profile spaced_k(sample_size, spacing)
+# Profile.print()
+# Profile.clear()
+# Profile.Allocs.@profile sample_rate=1 spaced_k(sample_size, spacing)
+# PProf.Allocs.pprof()
+# Profile.Allocs.clear()
