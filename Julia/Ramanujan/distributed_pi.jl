@@ -22,8 +22,10 @@ function main()
     end
 
     bit_precision = ceil(Int, desired_precision * ( log( 10 ) / log( 2 )  ))
-    setprecision(BigFloat, bit_precision)
-    setrounding(BigFloat, RoundNearest)
+    # We need precision set everywhere
+    @everywhere bit_precision = $bit_precision
+    @everywhere setprecision(BigFloat, bit_precision)
+    @everywhere setrounding(BigFloat, RoundNearest)
 
     factor::BigFloat = sqrt(big(8)) / 9801
 
