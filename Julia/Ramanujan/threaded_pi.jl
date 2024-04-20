@@ -61,6 +61,7 @@ function main()
     accumulator = 1 / accumulator
 
     check_results(accumulator, desired_precision)
+    check_string_results(accumulator, desired_precision)
 end
 
 main()

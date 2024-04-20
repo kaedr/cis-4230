@@ -68,11 +68,27 @@ function calculate_term(memo::Memo)
 end
 
 function check_results(accumulator::BigFloat, target_precision::UInt)
-
-    # Julia's functions for printing give up at 8k of text for format strings
-    # So rather than string comparison, as I was doing before, we'll check
-    # correctness against Julia's π builtin
     # println("Checking: $accumulator")
     difference = (BigFloat(π) - accumulator) * target_precision
     @printf "Difference at %ld digits is %.10f\n" target_precision difference
+end
+
+function check_string_results(accumulator::BigFloat, target_precision::UInt)
+    pi_file_string = read("pi.txt", String)
+    pi_calc_string = string(accumulator)
+
+    accuracy = 0
+    for (index, (ref, calced)) in enumerate(zip(pi_file_string, pi_calc_string))
+        # We set this before checking accuracy because the nature of rounding means
+        # We will be wrong about 50% of the time on the last digit
+        accuracy = index
+        if ref == calced
+            if index >= target_precision
+                break
+            end
+        else
+            break
+        end
+    end
+    println("Calculation accurate to $(accuracy) digits")
 end
