@@ -15,4 +15,33 @@
 
 ## Hello
 
-1.
+1. basic hello `julia hello.jl`
+2. [threaded](https://docs.julialang.org/en/v1/manual/multi-threading/) hello
+    1. static number of threads `julia -t 2 hello.jl`
+    2. dynamic number of threads `julia -t auto hello.jl`
+2. [distributed](https://docs.julialang.org/en/v1/manual/distributed-computing/) hello
+    1. local processes `julia -p 2 -t 2 hello.jl`
+    2. remote processes `julia --machine-file=hosts.txt -t 4 hello.jl`
+
+## Dig into pi in Julia
+
+## Performance analysis
+- `@profile` macro
+    ```julia
+    using Profile
+    @profile some_function()
+    Profile.print()
+
+    # If you want to get rid of accumulated results
+    Profile.clear()
+    ```
+- `@time` macro
+- `Profile.Allocs.@profile` + PProf.jl
+    ```Julia
+    Profile.Allocs.@profile sample_rate=1 some_function()
+    PProf.Allocs.pprof()
+    Profile.Allocs.clear()
+    ```
+
+Julia [tips](https://docs.julialang.org/en/v1/manual/performance-tips/)
+

@@ -1,5 +1,8 @@
-@everywhere using Base.Threads
+# The @everywhere macro is declared in Distributed, so this use needs to happen
+# once locally before happening again everywhere
+using Distributed
 @everywhere using Distributed
+@everywhere using Base.Threads
 
 @everywhere function greet(greeted, greeter)
     println("Hello $greeted, I'm $greeter")
