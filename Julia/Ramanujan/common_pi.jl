@@ -69,8 +69,11 @@ end
 
 function check_results(accumulator::BigFloat, target_precision::UInt)
     # println("Checking: $accumulator")
-    difference = (BigFloat(π) - accumulator) * target_precision
-    @printf "Difference at %ld digits is %.10f\n" target_precision difference
+    # Multiplying by 10 ^ target_precision shifts our difference a number of positions left
+    # equal to our desired_precision, making it easier to see the scope of any discrepency
+    # The downcast to Float64 is to make it display nicely
+    difference = Float64((BigFloat(π) - accumulator)::BigFloat * BigInt(10) ^ target_precision)
+    println("Difference at $target_precision digits is $difference")
 end
 
 function check_string_results(accumulator::BigFloat, target_precision::UInt)
