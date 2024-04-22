@@ -2,7 +2,7 @@ using Base.Threads
 include("common_pi.jl")
 
 function thread_work(tid::UInt, iterations::UInt)
-    k_memo = Memo(0, 0, 1, 1, 1, 0.0)
+    k_memo = default_memo()
     accumulator = BigFloat(0.0)
     start_time = time()
     # Have to do tid - 1 because of Julia's 1 based everything

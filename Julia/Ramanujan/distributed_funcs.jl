@@ -1,7 +1,7 @@
 using Base.Threads
 
 function thread_work(start_point::UInt, interval::UInt, iterations::UInt)
-    k_memo = Memo(0, 0, 1, 1, 1, 0.0)
+    k_memo = default_memo()
     accumulator = BigFloat(0.0)
     start_time = time()
 

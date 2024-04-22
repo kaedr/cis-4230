@@ -6,7 +6,7 @@ setprecision(BigFloat, bit_precision)
 setrounding(BigFloat, RoundNearest)
 
 function adjacent_k(sample_size::UInt)
-    k_memo = Memo(0, 0, 1, 1, 1, 0.0)
+    k_memo = default_memo()
     accumulator = BigFloat(0.0)
 
     for k in 0:sample_size
@@ -19,7 +19,7 @@ function adjacent_k(sample_size::UInt)
 end
 
 function spaced_k(sample_size::UInt, spacing::UInt)
-    k_memo = Memo(0, 0, 1, 1, 1, 0.0)
+    k_memo = default_memo()
     accumulator = BigFloat(0.0)
 
     for k in 0:spacing:sample_size

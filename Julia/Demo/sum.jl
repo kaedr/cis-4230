@@ -14,13 +14,14 @@ function main()
         array_length = parse(UInt, ARGS[1])
     end
 
-    float_array = fill(1.0, array_length)
+    println()
+    @time float_array = fill(1.0, array_length)
 
+    println()
     println("Single threaded Sum:")
     @time sum(float_array)
     @time sum(float_array)
     @time sum(float_array)
-
 
     println()
     println("$(Threads.nthreads()) Threaded Sum:")

@@ -16,6 +16,8 @@ mutable struct Memo
     term::BigFloat
 end
 
+default_memo() = Memo(0, 0, 1, 1, 1, 0.0)
+
 # (4n)! = (4k!) * 4n * 4n-1 ... 4k+1
 function next_four_k_factorial(memo::Memo, next_k::UInt)
     for i in (memo.k + 1):next_k

@@ -14,8 +14,8 @@ function main()
     setrounding(BigFloat, RoundNearest)
 
     accumulator::BigFloat = 0.0
-    k_memo = Memo(0, 0, 1, 1, 1, big"0.0")
-    factor::BigFloat = sqrt(big(8)) / 9801
+    k_memo = default_memo()
+    factor::BigFloat = √big(8) / 9801
     # I found that each iteration adds closer to 7 digit of precision
     iterations::UInt = ceil(desired_precision / 7)
     println("Making $iterations iterations")
