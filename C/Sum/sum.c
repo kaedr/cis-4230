@@ -55,7 +55,7 @@ double sum_hybrid( const double *array, size_t size )
 // ------------
 
 // Structure to define the range of the array processed by a single thread.
-struct WorkUnit {
+struct PThreadWorkUnit {
     const double *start;
     size_t size;
 };
@@ -64,7 +64,7 @@ struct WorkUnit {
 // The thread function that adds up all elements in a given range of a given array.
 void *summer( void *arg )
 {
-    struct WorkUnit *range = (struct WorkUnit *)arg;
+    struct PThreadWorkUnit *range = (struct PThreadWorkUnit *)arg;
     double accumulator = 0.0;
     double *result;
 
@@ -89,7 +89,7 @@ void *summer( void *arg )
  */
 double sum_parallel( const double *array, size_t size )
 {
-    struct WorkUnit ranges[2];   // Define the subproblems (thread arguments)
+    struct PThreadWorkUnit ranges[2];   // Define the subproblems (thread arguments)
     pthread_t threads[2];          // Thread handles.
     double    accumulator = 0.0;   // The final answer.
     void     *result;              // Used to hold the values returned by the threads.
@@ -130,8 +130,8 @@ double sum_parallel( const double *array, size_t size )
 double sum_dynamic( const double *array, size_t size, size_t processor_count )
 {
 
-    struct WorkUnit *ranges =
-        (struct WorkUnit *)malloc( processor_count * sizeof(struct WorkUnit) );
+    struct PThreadWorkUnit *ranges =
+        (struct PThreadWorkUnit *)malloc( processor_count * sizeof(struct PThreadWorkUnit) );
     pthread_t *threads =
         (pthread_t *)malloc( processor_count * sizeof(pthread_t) );
 

@@ -33,6 +33,6 @@ enum GaussianResult {
  * with the solution. If this function is not successful, the matrix of coefficients and the
  * driving vector may be in a partially modified state.
  */
-enum GaussianResult gaussian_solve( size_t size, floating_type (* restrict a)[size], floating_type * restrict b );
+enum GaussianResult gaussian_solve( size_t size, floating_type (* restrict a)[size], floating_type * restrict b, int selection );
 
 #endif

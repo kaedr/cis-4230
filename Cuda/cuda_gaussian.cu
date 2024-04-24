@@ -1,25 +1,53 @@
-/*!
- *  \file   solve_system.c
- *  \brief  Solve a large system of simultaneous equations.
- *  \author (C) Copyright 2024 by Peter Chapin <pchapin@vermontstate.edu>
- */
 
-#include <stdlib.h>
 #include <stdio.h>
-#include <errno.h>
+#include <stdlib.h>
+#include <cuda_runtime.h>
 
-#include "gaussian.h"
 #include "Timer.h"
 
-int menu() {
-    printf("Options:\n");
-    printf("1. Serial:\n");
-    printf("2. Naive p_thread:\n");
-    printf("3. Barrier p_thread:\n");
-    printf("4. Thread Pool:\n");
-    return getchar();
+// Change this type alias to change the data type of the matrix elements.
+typedef double floating_type;
+
+enum GaussianResult {
+    gaussian_success,     // The system was solved normally.
+    gaussian_error,       // A problem with the parameters was detected.
+    gaussian_degenerate   // The system is degenerate and does not have a unique solution.
+};
+
+//! Does the back substitution step of solving the system. O(n^2)
+enum GaussianResult back_substitution( size_t size, floating_type (* __restrict__ a)[size], floating_type * __restrict__ b )
+{
+    floating_type sum;
+    size_t        i, j;
+    size_t        counter;
+
+    // We can't count i down from size - 1 to zero (inclusive) because it is unsigned.
+    for( counter = 0; counter < size; ++counter ) {
+        i = ( size - 1 ) - counter;
+        // TODO: The value 1.0E-6 is arbitrary. A more disciplined value should be used.
+        if( fabs( a[i][i] ) <= 1.0E-6 ) {
+            return gaussian_degenerate;
+        }
+
+        sum = b[i];
+        for( j = i + 1; j < size; ++j ) {
+            sum -= a[i][j] * b[j];
+        }
+        b[i] = sum / a[i][i];
+    }
+    return gaussian_success;
 }
 
+enum GaussianResult gaussian_solve( size_t size, floating_type (* __restrict__ a)[size], floating_type * __restrict__ b )
+{
+    // We can deal with a 1x1 system, but not an empty system.
+    if( size == 0 ) return gaussian_error;
+    enum GaussianResult return_code = elimination( size, a, b );
+
+    if( return_code == gaussian_success )
+        return_code = back_substitution( size, a, b );
+    return return_code;
+}
 
 int main( int argc, char *argv[] )
 {
@@ -61,27 +89,11 @@ int main( int argc, char *argv[] )
     }
     fclose( input_file );
 
-    // printf( "\nFinished reading %s\n", argv[1] );
-
-    int selection = 0;
-    char *char_pointer;
-    if (argc > 2) {
-        errno = 0;
-        long converted = strtol(argv[2], &char_pointer, 10);
-
-        if (errno == 0 && *char_pointer == '\0' && converted > 0 && converted <= __LONG_MAX__) {
-            selection = converted;
-        }
-    }
-    if (selection == 0) {
-        selection = menu();
-    }
-
     // Do the calculations.
     Timer stopwatch;
     Timer_initialize( &stopwatch );
     Timer_start( &stopwatch );
-    enum GaussianResult result = gaussian_solve( size, a, b, selection );
+    enum GaussianResult result = gaussian_solve( size, a, b );
     Timer_stop( &stopwatch );
 
     // Display the results.
