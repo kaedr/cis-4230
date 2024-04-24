@@ -56,6 +56,7 @@ int main( void )
     // Print the answer.
     printf( "e = " );
     mpfr_out_str( stdout, 10, 0, accumulator, MPFR_RNDN );
+    printf( "\n" );
 
     // Release resources associated with the multi-precision floats.
     mpfr_clear( term );
