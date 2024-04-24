@@ -50,7 +50,8 @@ int main( int argc, char *argv[] )
         fscanf( input_file, "%lf", &b[i] );
     }
     fclose( input_file );
-    //printf( "\nFinished reading %s\n", argv[1] );
+
+    // printf( "\nFinished reading %s\n", argv[1] );
 
     // Do the calculations.
     Timer stopwatch;
