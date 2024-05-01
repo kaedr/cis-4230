@@ -1,1 +1,1 @@
-gcc -o opencl_gaussian.exe -I/usr/local/cuda/include -lm Timer.c opencl_gaussian.c
+gcc -o $1.exe -I/usr/local/cuda/include -L/usr/local/cuda/lib64/ -lm Timer.c $1.c -lOpenCL

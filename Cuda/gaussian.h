@@ -41,6 +41,14 @@ enum GaussianResult {
  * with the solution. If this function is not successful, the matrix of coefficients and the
  * driving vector may be in a partially modified state.
  */
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 enum GaussianResult gaussian_solve( size_t size, floating_type *a, floating_type *b );
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

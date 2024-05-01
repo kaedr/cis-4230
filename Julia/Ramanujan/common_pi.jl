@@ -3,7 +3,7 @@ using Printf
 # For correct initial values, construct as:
 # Memo(0, 0, 1, 1, 1, 0.0)
 mutable struct Memo
-    k::UInt;
+    k::UInt
     # 26390n = 26390k * 26390(n-k)
     k_26390::BigInt
     # 396^4n = 396^4k * 396^4(n-k)
