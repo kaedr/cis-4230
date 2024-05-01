@@ -21,23 +21,30 @@ __global__ void elimination_kernel( size_t size, floating_type *a, floating_type
     size_t         k;
     floating_type  m;
 
-    int j;
     int my_id = threadIdx.x;
-    if (!my_id == 0) {
-        return;
-    }
+    int j = i + 1 + my_id;
+    // if (j >= size) {
+    //     printf("Ignoring j=%d\n", j);
+    //     return;
+    // }
     // Synchronize
-    __syncthreads();
+    // __syncthreads();
     // Subtract multiples of row i from subsequent rows.
-    for( j = i + 1; j < size; ++j ) {
-        // if (!j % my_id == 0) {
-        //     continue;
-        // }
-        m = MATRIX_GET( a, size, j, i ) / MATRIX_GET( a, size, i, i );
-        for( k = 0; k < size; ++k )
-            MATRIX_PUT( a, size, j, k, MATRIX_GET( a, size, j, k ) - m * MATRIX_GET( a, size, i, k ) );
-        b[j] -= m * b[i];
-    }
+    // for( j = i + 1; j < size; ++j ) {
+    //     if (!j % my_id == 0) {
+    //         continue;
+    //     }
+    //     m = MATRIX_GET( a, size, j, i ) / MATRIX_GET( a, size, i, i );
+    //     for( k = 0; k < size; ++k )
+    //         MATRIX_PUT( a, size, j, k, MATRIX_GET( a, size, j, k ) - m * MATRIX_GET( a, size, i, k ) );
+    //     b[j] -= m * b[i];
+    // }
+    // printf("i: %ld, j: %d my_id: %d\n", i, j, my_id);
+    m = MATRIX_GET( a, size, j, i ) / MATRIX_GET( a, size, i, i );
+    for( k = 0; k < size; ++k )
+        MATRIX_PUT( a, size, j, k, MATRIX_GET( a, size, j, k ) - m * MATRIX_GET( a, size, i, k ) );
+    b[j] -= m * b[i];
+
 }
 
 //! Does the elimination step of reducing the system. O(n^3)
@@ -93,7 +100,7 @@ PRIVATE enum GaussianResult elimination( size_t size, floating_type *a, floating
 
         cudaMemcpy( dev_a, a, size * size * sizeof(double), cudaMemcpyHostToDevice );
         cudaMemcpy( dev_b, b, size * sizeof(double), cudaMemcpyHostToDevice );
-        elimination_kernel<<<1, 1>>>( size, dev_a, dev_b, i );
+        elimination_kernel<<<1, size - 1 - i>>>( size, dev_a, dev_b, i );
         cudaMemcpy( a, dev_a, size * size * sizeof(double), cudaMemcpyDeviceToHost );
         cudaMemcpy( b, dev_b, size * sizeof(double), cudaMemcpyDeviceToHost );
     }
