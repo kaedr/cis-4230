@@ -11,5 +11,4 @@ __kernel void chunk_elimination(__global double *a, __global double *b, unsigned
     for( k = 0; k < size; ++k )
         MATRIX_PUT( a, size, j, k, MATRIX_GET( a, size, j, k ) - m * MATRIX_GET( a, size, i, k ) );
     b[j] -= m * b[i];
-    // printf("hello from %i\n", my_id);
 }

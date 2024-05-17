@@ -52,7 +52,9 @@ enum GaussianResult elimination( size_t size, floating_type (* restrict a)[size]
 
     // Allocate two input buffers and one output buffer.
     cl_mem bufA = clCreateBuffer( context, CL_MEM_READ_WRITE,  datasize * size, NULL, &status );
+    if( status != CL_SUCCESS ) fprintf( stderr, "Error creating bufA!\n" );
     cl_mem bufB = clCreateBuffer( context, CL_MEM_READ_WRITE,  datasize, NULL, &status );
+    if( status != CL_SUCCESS ) fprintf( stderr, "Error creating bufB!\n" );
 
 
     char *programSource;
@@ -137,25 +139,6 @@ enum GaussianResult elimination( size_t size, floating_type (* restrict a)[size]
             b[k] = temp;
         }
 
-        // Subtract multiples of row i from subsequent rows.
-        // if (i % 2 == 0) {
-        //     for( j = i + 1; j < size; ++j ) {
-        //         m = a[j][i] / a[i][i];
-        //         for( k = 0; k < size; ++k ) {
-        //             a[j][k] -= m * a[i][k];
-        //         }
-        //         b[j] -= m * b[i];
-        //     }
-        // } else {
-        //     for( j = size - 1; j > i; --j ) {
-        //         m = a[j][i] / a[i][i];
-        //         for( k = 0; k < size; ++k ) {
-        //             a[j][k] -= m * a[i][k];
-        //         }
-        //         b[j] -= m * b[i];
-        //     }
-        // }
-
         // Transfer data from host arrays into the input buffers.
         status = clEnqueueWriteBuffer( cmdQueue, bufA, CL_TRUE, 0, datasize * size, a, 0, NULL, NULL );
         if( status != CL_SUCCESS ) fprintf( stderr, "Error copying bufA to Device! Error code: %d\n", status );
@@ -163,7 +146,8 @@ enum GaussianResult elimination( size_t size, floating_type (* restrict a)[size]
         if( status != CL_SUCCESS ) fprintf( stderr, "Error copying bufB to Device! Error code: %d\n", status );
 
         // Set the kernel arguments.
-        cl_uint cl_size, cl_i = size, i;
+        cl_uint cl_size = size;
+        cl_uint cl_i = i;
         status = clSetKernelArg( kernel, 0, sizeof(cl_mem), &bufA );
         if( status != CL_SUCCESS ) fprintf( stderr, "Error adding argument 0! Error code: %d\n", status );
         status = clSetKernelArg( kernel, 1, sizeof(cl_mem), &bufB );
@@ -190,6 +174,135 @@ enum GaussianResult elimination( size_t size, floating_type (* restrict a)[size]
         status = clEnqueueReadBuffer( cmdQueue, bufB, CL_TRUE, 0, datasize, b, 0, NULL, NULL );
         if( status != CL_SUCCESS ) fprintf( stderr, "Error copying bufB to Host! Error code: %d\n", status );
     }
+    //free( temp_array );
+
+    // Free OpenCL resources.
+    clReleaseKernel( kernel );
+    clReleaseProgram( program );
+    clReleaseCommandQueue( cmdQueue );
+    clReleaseMemObject( bufA );
+    clReleaseMemObject( bufB );
+    clReleaseContext( context );
+
+    return gaussian_success;
+}
+
+enum GaussianResult full_gpu_elimination( size_t size, floating_type (* restrict a)[size], floating_type * restrict b )
+{
+
+    cl_uint platform_count = 0;
+
+    // Compute the size of the data.
+    size_t datasize = sizeof(double) * size;
+
+    // Use this to check the output of each API call.
+    cl_int status;
+
+    // Get the first platform.
+    cl_platform_id platform;
+    status = clGetPlatformIDs( 1, &platform, &platform_count );
+    printf( "%d OpenCL platforms available.\n", (int)platform_count );
+    if( status != CL_SUCCESS ) fprintf( stderr, "Error getting platform IDs!\n" );
+
+    // Get the first device.
+    cl_device_id device;
+    status = clGetDeviceIDs( platform, CL_DEVICE_TYPE_ALL, 1, &device, NULL );
+    if( status != CL_SUCCESS ) fprintf( stderr, "Error getting device IDs!\n" );
+
+    // Create a context and associate it with the device.
+    cl_context context = clCreateContext( NULL, 1, &device, NULL, NULL, &status );
+    if( status != CL_SUCCESS ) fprintf( stderr, "Error creating context!\n" );
+
+    // Create a command queue and associate it with the device.
+    cl_command_queue cmdQueue = clCreateCommandQueueWithProperties( context, device, NULL, &status );
+    if( status != CL_SUCCESS ) fprintf( stderr, "Error creating the command queue!\n" );
+
+    // Allocate two input buffers and one output buffer.
+    cl_mem bufA = clCreateBuffer( context, CL_MEM_READ_WRITE,  datasize * size, NULL, &status );
+    if( status != CL_SUCCESS ) fprintf( stderr, "Error creating bufA!\n" );
+    cl_mem bufB = clCreateBuffer( context, CL_MEM_READ_WRITE,  datasize, NULL, &status );
+    if( status != CL_SUCCESS ) fprintf( stderr, "Error creating bufB!\n" );
+
+
+    char *programSource;
+    size_t program_size;
+    FILE *kernel_file = fopen("full_elimination_kernel.cl", "rb");
+    if (!kernel_file) {
+        printf("Failed to load kernel\n");
+        return 1;
+    }
+
+    fseek(kernel_file, 0, SEEK_END);
+    program_size = ftell(kernel_file);
+    rewind(kernel_file);
+    programSource = (char*)malloc(program_size + 1);
+    programSource[program_size] = '\0';
+    fread(programSource, sizeof(char), program_size, kernel_file);
+    fclose(kernel_file);
+
+    // Create a program with source code.
+    cl_program program =
+        clCreateProgramWithSource( context, 1, (const char **)&programSource, NULL, &status );
+    if( status != CL_SUCCESS ) fprintf( stderr, "Error creating program object!\n" );
+
+    // Build the program for the device.
+    status = clBuildProgram( program, 1, &device, NULL, NULL, NULL );
+    if( status != CL_SUCCESS ) {
+        int log_len;
+        clGetProgramBuildInfo(program, device, CL_PROGRAM_BUILD_LOG, NULL, NULL, &log_len);
+        char *log = (char*)calloc(log_len, sizeof(char));;
+        clGetProgramBuildInfo(program, device, CL_PROGRAM_BUILD_LOG, log_len, log, NULL);
+        switch( status ) {
+        case CL_COMPILER_NOT_AVAILABLE:
+            fprintf( stderr, "Error building program! Compiler not available.\n" );
+            break;
+        case CL_BUILD_PROGRAM_FAILURE:
+            fprintf( stderr, "Error building program! Build failure.\n" );
+            break;
+        default:
+            fprintf( stderr, "Error building program! *unknown reason*\n" );
+            break;
+        }
+        fprintf( stderr, "%s\n", log );
+    }
+
+    // Create the chunk elimination kernel.
+    cl_kernel kernel = clCreateKernel( program, "chunk_elimination", &status );
+    if( status != CL_SUCCESS ) fprintf( stderr, "Error creating kernel!\n" );
+
+    // Transfer data from host arrays into the input buffers.
+    status = clEnqueueWriteBuffer( cmdQueue, bufA, CL_TRUE, 0, datasize * size, a, 0, NULL, NULL );
+    if( status != CL_SUCCESS ) fprintf( stderr, "Error copying bufA to Device! Error code: %d\n", status );
+    status = clEnqueueWriteBuffer( cmdQueue, bufB, CL_TRUE, 0, datasize, b, 0, NULL, NULL );
+    if( status != CL_SUCCESS ) fprintf( stderr, "Error copying bufB to Device! Error code: %d\n", status );
+
+    // Set the kernel arguments.
+    cl_uint cl_size = size;
+    status = clSetKernelArg( kernel, 0, sizeof(cl_mem), &bufA );
+    if( status != CL_SUCCESS ) fprintf( stderr, "Error adding argument 0! Error code: %d\n", status );
+    status = clSetKernelArg( kernel, 1, sizeof(cl_mem), &bufB );
+    if( status != CL_SUCCESS ) fprintf( stderr, "Error adding argument 1! Error code: %d\n", status );
+    status = clSetKernelArg( kernel, 2, sizeof(cl_uint), &cl_size );
+    if( status != CL_SUCCESS ) fprintf( stderr, "Error adding argument 2! Error code: %d\n", status );
+    // status = clSetKernelArg( kernel, 2, size * sizeof(cl_double), NULL );
+    // if( status != CL_SUCCESS ) fprintf( stderr, "Error adding argument 2! Error code: %d\n", status );
+
+    // Define an index space of work items for execution.
+    size_t indexSpaceSize[1], workGroupSize[1];
+    indexSpaceSize[0] = size - 1;
+    workGroupSize[0] = 1;
+
+    // Execute the kernel.
+    status =
+        clEnqueueNDRangeKernel(
+        cmdQueue, kernel, 1, NULL, indexSpaceSize, workGroupSize, 0, NULL, NULL);
+    if( status != CL_SUCCESS ) fprintf( stderr, "Error queuing kernel execution! Error code: %d\n", status );
+
+    // Read the device output buffers to the host output arrays.
+    status = clEnqueueReadBuffer( cmdQueue, bufA, CL_TRUE, 0, datasize * size, a, 0, NULL, NULL );
+    if( status != CL_SUCCESS ) fprintf( stderr, "Error copying bufA to Host! Error code: %d\n", status );
+    status = clEnqueueReadBuffer( cmdQueue, bufB, CL_TRUE, 0, datasize, b, 0, NULL, NULL );
+    if( status != CL_SUCCESS ) fprintf( stderr, "Error copying bufB to Host! Error code: %d\n", status );
     //free( temp_array );
 
     // Free OpenCL resources.
